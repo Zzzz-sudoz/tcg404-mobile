@@ -9,13 +9,13 @@ Flutter 3.44.9 / Dart 3.12.2, with Chrome or an Android SDK for the target platf
 ## Run
 
     flutter pub get
-    flutter run -d chrome --dart-define=API_BASE_URL=https://YOUR_API_HOST/api
+    flutter run -d chrome
 
 For Android, use flutter run -d followed by the device ID reported by flutter devices.
 
 Supply a reachable API endpoint with --dart-define=API_BASE_URL=https://YOUR_API_HOST/api. This is a public endpoint; database credentials and provider keys belong only on the server.
 
-The Android emulator development default is http://10.0.2.2:5000/api. Web uses its own origin's /api path by default; configure a reverse proxy to the shared backend when using this default. Production and physical Android devices require a reachable HTTPS endpoint.
+The Android emulator development default is http://10.0.2.2:5000/api. Browser development uses http://127.0.0.1:5180; web_dev_config.yaml proxies /api/ to the backend on port 5000. Include http://127.0.0.1:5180 and http://localhost:5180 in the local backend CLIENT_ORIGIN. Restart Flutter after changing development server configuration. Production and physical Android devices require a reachable HTTPS endpoint.
 
 ## Features
 
@@ -33,7 +33,7 @@ Web output is build/web. APK output is build/app/outputs/flutter-apk/app-release
 
 Import this repository with framework preset Other. The included vercel.json installs Flutter 3.44.9 and builds into build/web. Deploying this web build does not distribute the Android APK.
 
-Before deployment, configure same-origin /api routing to the actual shared backend and its trusted-origin/cookie settings. Do not rewrite API requests to index.html. Alternatively, supply API_BASE_URL at Flutter build time and verify browser CORS and cookie behavior for that origin. No production API hostname is configured in this repository.
+The included API rewrite points to https://tcg404-api.vercel.app/api. Add the deployed mobile site's exact HTTPS origin to the backend CLIENT_ORIGIN and redeploy the backend. Browser sessions use the same-origin HttpOnly cookie; do not rewrite API requests to index.html.
 
 The backend repository is https://github.com/Zzzz-sudoz/tcg404-api. Mobile and web use the same saved inventory, users and orders.
 

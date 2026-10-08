@@ -40,6 +40,31 @@ class _AccountScreenState extends State<AccountScreen> {
     }
   }
 
+  Future<void> _logout() async {
+    final revision = widget.auth.revision;
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        icon: const Icon(Icons.logout, color: TcgColors.red),
+        title: const Text('Are you sure you want to logout?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: TcgColors.red),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Logout'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && mounted && revision == widget.auth.revision) {
+      await widget.auth.logout();
+    }
+  }
+
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: widget.auth,
@@ -103,7 +128,7 @@ class _AccountScreenState extends State<AccountScreen> {
                   ),
                 ] else ...[
                   Text(
-                    'Your profile',
+                    'Edit account',
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                   const SizedBox(height: 24),
@@ -140,7 +165,7 @@ class _AccountScreenState extends State<AccountScreen> {
                         FilledButton(
                           onPressed: auth.busy ? null : _save,
                           child: Text(
-                            auth.busy ? 'Please wait...' : 'Save name',
+                            auth.busy ? 'Please wait...' : 'Save changes',
                           ),
                         ),
                       ],
@@ -152,12 +177,17 @@ class _AccountScreenState extends State<AccountScreen> {
                   OutlinedButton.icon(
                     onPressed: auth.busy ? null : widget.onOrders,
                     icon: const Icon(Icons.receipt_long_outlined),
-                    label: const Text('Order history'),
+                    label: const Text('Orders & tracking'),
                   ),
                   const SizedBox(height: 8),
-                  TextButton(
-                    onPressed: auth.busy ? null : auth.logout,
-                    child: const Text('Logout'),
+                  OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: TcgColors.red,
+                      side: const BorderSide(color: TcgColors.red),
+                    ),
+                    onPressed: auth.busy ? null : _logout,
+                    icon: const Icon(Icons.logout),
+                    label: const Text('Logout'),
                   ),
                 ],
               ],

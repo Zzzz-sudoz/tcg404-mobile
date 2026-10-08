@@ -18,6 +18,7 @@ class _AuthScreenState extends State<AuthScreen> {
   final _name = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
+  final _confirm = TextEditingController();
   bool _visible = false;
   late bool _register = widget.register;
   String? _error;
@@ -27,6 +28,7 @@ class _AuthScreenState extends State<AuthScreen> {
     _name.dispose();
     _email.dispose();
     _password.dispose();
+    _confirm.dispose();
     super.dispose();
   }
 
@@ -60,6 +62,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 builder: (context, child) => AutofillGroup(
                   child: Form(
                     key: _form,
+                    autovalidateMode: AutovalidateMode.onUserInteraction,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
@@ -70,13 +73,6 @@ class _AuthScreenState extends State<AuthScreen> {
                           style: Theme.of(context).textTheme.headlineLarge,
                         ),
                         const SizedBox(height: 16),
-                        Text(
-                          _register
-                              ? 'Create your TCG404 account to manage your profile and orders.'
-                              : 'Sign in to view your profile and orders.',
-                          style: const TextStyle(color: TcgColors.muted),
-                        ),
-                        const SizedBox(height: 32),
                         if (_register) ...[
                           TextFormField(
                             controller: _name,
@@ -98,15 +94,28 @@ class _AuthScreenState extends State<AuthScreen> {
                         TextFormField(
                           controller: _email,
                           enabled: !widget.auth.busy,
-                          autofillHints: const [AutofillHints.email],
-                          keyboardType: TextInputType.emailAddress,
+                          autofillHints: [
+                            _register
+                                ? AutofillHints.email
+                                : AutofillHints.username,
+                          ],
+                          keyboardType: _register
+                              ? TextInputType.emailAddress
+                              : TextInputType.text,
                           textInputAction: TextInputAction.next,
                           autocorrect: false,
-                          decoration: const InputDecoration(
-                            labelText: 'Email address',
+                          decoration: InputDecoration(
+                            labelText: _register
+                                ? 'Email address'
+                                : 'Email or username',
                           ),
                           validator: (value) {
                             final email = value?.trim() ?? '';
+                            if (!_register) {
+                              return email.isEmpty || email.length > 254
+                                  ? 'Enter your email or username.'
+                                  : null;
+                            }
                             return email.length > 254 ||
                                     !RegExp(
                                       r'^[^\s@]+@[^\s@]+\.[^\s@]+$',
@@ -127,13 +136,11 @@ class _AuthScreenState extends State<AuthScreen> {
                           obscureText: !_visible,
                           autocorrect: false,
                           enableSuggestions: false,
+                          onChanged: (_) => setState(() {}),
                           textInputAction: TextInputAction.done,
                           onFieldSubmitted: (_) => _submit(),
                           decoration: InputDecoration(
                             labelText: 'Password',
-                            helperText: _register
-                                ? 'Use 8 to 128 characters.'
-                                : null,
                             suffixIcon: IconButton(
                               tooltip: _visible
                                   ? 'Hide password'
@@ -150,14 +157,86 @@ class _AuthScreenState extends State<AuthScreen> {
                           validator: (value) {
                             final length = value?.length ?? 0;
                             if (length == 0) return 'Enter your password.';
-                            if (length > 128 || (_register && length < 8)) {
+                            if (length > 128 || (_register && length < 5)) {
                               return _register
-                                  ? 'Use 8 to 128 characters.'
+                                  ? 'Use 5 to 128 characters.'
                                   : 'Use no more than 128 characters.';
+                            }
+                            if (_register &&
+                                (!RegExp(r'[A-Z]').hasMatch(value!) ||
+                                    !RegExp(r'[0-9]').hasMatch(value) ||
+                                    !RegExp(
+                                      r'[^A-Za-z0-9\s]',
+                                    ).hasMatch(value))) {
+                              return 'Include an uppercase letter, number and special character.';
                             }
                             return null;
                           },
                         ),
+                        if (_register) ...[
+                          const SizedBox(height: 12),
+                          for (final rule in <String, bool>{
+                            '5 to 128 characters':
+                                _password.text.length >= 5 &&
+                                _password.text.length <= 128,
+                            'One uppercase letter': RegExp(
+                              r'[A-Z]',
+                            ).hasMatch(_password.text),
+                            'One number': RegExp(
+                              r'[0-9]',
+                            ).hasMatch(_password.text),
+                            'One special character': RegExp(
+                              r'[^A-Za-z0-9\s]',
+                            ).hasMatch(_password.text),
+                          }.entries)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 3),
+                              child: Row(
+                                children: [
+                                  Icon(
+                                    rule.value
+                                        ? Icons.check_circle_outline
+                                        : Icons.circle_outlined,
+                                    size: 18,
+                                    color: rule.value
+                                        ? TcgColors.yellow
+                                        : TcgColors.muted,
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      rule.key,
+                                      style: TextStyle(
+                                        color: rule.value
+                                            ? TcgColors.yellow
+                                            : TcgColors.muted,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          const SizedBox(height: 16),
+                          TextFormField(
+                            controller: _confirm,
+                            enabled: !widget.auth.busy,
+                            obscureText: !_visible,
+                            autocorrect: false,
+                            enableSuggestions: false,
+                            autovalidateMode:
+                                AutovalidateMode.onUserInteraction,
+                            decoration: const InputDecoration(
+                              labelText: 'Confirm password',
+                            ),
+                            textInputAction: TextInputAction.done,
+                            onFieldSubmitted: (_) => _submit(),
+                            validator: (value) =>
+                                value != _password.text ||
+                                    (value?.isEmpty ?? true)
+                                ? 'Passwords must match.'
+                                : null,
+                          ),
+                        ],
                         if (_error != null) ...[
                           const SizedBox(height: 16),
                           Semantics(

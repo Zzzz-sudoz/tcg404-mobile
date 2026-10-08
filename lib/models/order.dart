@@ -83,6 +83,15 @@ class StoreOrder {
   final DateTime createdAt;
   final Map<String, dynamic>? payment;
 
+  String get statusLabel => const {
+    'pending': 'Pending',
+    'confirmed': 'Processing',
+    'processing': 'Packaging',
+    'shipped': 'Out for delivery',
+    'completed': 'Completed',
+    'cancelled': 'Cancelled',
+  }[status]!;
+
   factory StoreOrder.fromJson(Map<String, dynamic> json) {
     final rows = json['items'];
     final address = json['shipping'];

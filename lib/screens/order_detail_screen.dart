@@ -235,7 +235,39 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               style: const TextStyle(color: TcgColors.muted),
             ),
             const SizedBox(height: 12),
-            Text('Order status: ${order.status}'),
+            Text('Order status: ${order.statusLabel}'),
+            const SizedBox(height: 16),
+            if (order.status != 'cancelled')
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final stage in const {
+                    'pending': 'Pending',
+                    'confirmed': 'Processing',
+                    'processing': 'Packaging',
+                    'shipped': 'Out for delivery',
+                    'completed': 'Completed',
+                  }.entries)
+                    Chip(
+                      avatar: Icon(
+                        stage.key == order.status
+                            ? Icons.radio_button_checked
+                            : Icons.radio_button_unchecked,
+                        size: 18,
+                        color: stage.key == order.status
+                            ? TcgColors.yellow
+                            : TcgColors.muted,
+                      ),
+                      label: Text(stage.value),
+                      side: BorderSide(
+                        color: stage.key == order.status
+                            ? TcgColors.yellow
+                            : TcgColors.border,
+                      ),
+                    ),
+                ],
+              ),
             const SizedBox(height: 4),
             Text('Payment status: ${order.paymentStatus}'),
             if (order.payment != null) ...[
@@ -352,6 +384,13 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(
       title: Text(widget.success ? 'Your receipt' : 'Order details'),
+      actions: [
+        IconButton(
+          tooltip: 'Refresh order',
+          onPressed: _loading || _identity == null ? null : _load,
+          icon: const Icon(Icons.refresh),
+        ),
+      ],
     ),
     body: StoreBackdrop(
       child: SafeArea(

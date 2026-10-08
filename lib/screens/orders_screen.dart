@@ -137,7 +137,16 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Your orders')),
+    appBar: AppBar(
+      title: const Text('Your orders'),
+      actions: [
+        IconButton(
+          tooltip: 'Refresh orders',
+          onPressed: _loading || _identity == null ? null : _load,
+          icon: const Icon(Icons.refresh),
+        ),
+      ],
+    ),
     body: StoreBackdrop(
       child: SafeArea(
         child: Center(
@@ -239,7 +248,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                             ),
                                           ),
                                           Text(
-                                            order.status,
+                                            order.statusLabel,
                                             style: const TextStyle(
                                               color: TcgColors.lavender,
                                             ),
