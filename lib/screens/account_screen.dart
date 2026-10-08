@@ -157,7 +157,7 @@ class _AccountScreenState extends State<AccountScreen> {
                   const SizedBox(height: 8),
                   TextButton(
                     onPressed: auth.busy ? null : auth.logout,
-                    child: const Text('Sign out'),
+                    child: const Text('Logout'),
                   ),
                 ],
               ],
