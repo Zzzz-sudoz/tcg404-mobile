@@ -55,3 +55,4 @@ app.*.map.json
 .vercel/
 *.apk
 *.aab
+/android/.kotlin/

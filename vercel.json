@@ -1,0 +1,6 @@
+{
+  "framework": null,
+  "installCommand": "true",
+  "buildCommand": "git clone --depth 1 --branch 3.44.9 https://github.com/flutter/flutter.git /tmp/tcg404-flutter && /tmp/tcg404-flutter/bin/flutter pub get && /tmp/tcg404-flutter/bin/flutter build web --release --no-web-resources-cdn",
+  "outputDirectory": "build/web"
+}
