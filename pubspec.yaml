@@ -15,3 +15,15 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/collector-backdrop.png
+    - assets/cards/
+  fonts:
+    - family: Barlow
+      fonts:
+        - asset: assets/fonts/barlow-0.ttf
+          weight: 600
+        - asset: assets/fonts/barlow-1.ttf
+          weight: 700
+        - asset: assets/fonts/barlow-2.ttf
+          weight: 800
