@@ -86,10 +86,11 @@ class StoreOrder {
   String get statusLabel => const {
     'pending': 'Pending',
     'confirmed': 'Processing',
-    'processing': 'Packaging',
-    'shipped': 'Out for delivery',
+    'processing': 'Processing',
+    'shipped': 'To be delivered',
     'completed': 'Completed',
-    'cancelled': 'Cancelled',
+    'cancelled': 'Canceled',
+    'delayed': 'Delayed',
   }[status]!;
 
   factory StoreOrder.fromJson(Map<String, dynamic> json) {
@@ -114,6 +115,7 @@ class StoreOrder {
           'shipped',
           'completed',
           'cancelled',
+          'delayed',
         ].contains(status) ||
         !const ['unpaid', 'paid', 'simulated'].contains(paymentStatus) ||
         (payment != null && payment is! Map<String, dynamic>)) {

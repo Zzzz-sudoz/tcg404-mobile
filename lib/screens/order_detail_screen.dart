@@ -242,26 +242,37 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  for (final stage in const {
+                  for (final stage in {
                     'pending': 'Pending',
-                    'confirmed': 'Processing',
-                    'processing': 'Packaging',
-                    'shipped': 'Out for delivery',
+                    'processing': 'Processing',
+                    'shipped': 'To be delivered',
                     'completed': 'Completed',
+                    if (order.status == 'delayed') 'delayed': 'Delayed',
                   }.entries)
                     Chip(
                       avatar: Icon(
-                        stage.key == order.status
+                        stage.key ==
+                                (order.status == 'confirmed'
+                                    ? 'processing'
+                                    : order.status)
                             ? Icons.radio_button_checked
                             : Icons.radio_button_unchecked,
                         size: 18,
-                        color: stage.key == order.status
+                        color:
+                            stage.key ==
+                                (order.status == 'confirmed'
+                                    ? 'processing'
+                                    : order.status)
                             ? TcgColors.yellow
                             : TcgColors.muted,
                       ),
                       label: Text(stage.value),
                       side: BorderSide(
-                        color: stage.key == order.status
+                        color:
+                            stage.key ==
+                                (order.status == 'confirmed'
+                                    ? 'processing'
+                                    : order.status)
                             ? TcgColors.yellow
                             : TcgColors.border,
                       ),
