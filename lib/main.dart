@@ -4,6 +4,7 @@ import 'widgets/store_widgets.dart';
 import 'models/product.dart';
 import 'services/catalog_api.dart';
 import 'screens/home_screen.dart';
+import 'screens/shop_screen.dart';
 
 void main() => runApp(
   MaterialApp(
@@ -44,49 +45,47 @@ class _MobileStoreState extends State<MobileStore> {
       ),
     ),
   );
-  void _shop(String game) {
-    final products = _api.list({'game': game, 'limit': '12'});
-    Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => Scaffold(
-          appBar: AppBar(title: const Text('Cards')),
-          body: FutureBuilder<ProductPage>(
-            future: products,
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                return StoreMessage(
-                  title: 'Cards unavailable',
-                  message: snapshot.error.toString(),
-                  action: 'Back',
-                  onAction: () => Navigator.of(context).pop(),
-                );
-              }
-              if (!snapshot.hasData) {
-                return const Center(child: CircularProgressIndicator());
-              }
-              return ListView(
-                children: [
-                  for (final product in snapshot.data!.items)
-                    ListTile(
-                      title: Text(product.name),
-                      subtitle: Text(money(product.price)),
-                      onTap: () => _product(product),
-                    ),
-                ],
-              );
-            },
-          ),
-        ),
-      ),
-    );
-  }
-
+  int _tab = 0;
+  String _game = '';
+  int _revision = 0;
+  void _shop(String game) => setState(() {
+    _game = game;
+    _revision++;
+    _tab = 1;
+  });
   @override
   Widget build(BuildContext context) => Scaffold(
     body: StoreBackdrop(
       child: SafeArea(
-        child: HomeScreen(api: _api, onProduct: _product, onShop: _shop),
+        child: IndexedStack(
+          index: _tab,
+          children: [
+            HomeScreen(api: _api, onProduct: _product, onShop: _shop),
+            ShopScreen(
+              key: ValueKey(_revision),
+              api: _api,
+              onProduct: _product,
+              initialGame: _game,
+            ),
+          ],
+        ),
       ),
     ),
+    bottomNavigationBar: MediaQuery.viewInsetsOf(context).bottom > 0
+        ? null
+        : NavigationBar(
+            selectedIndex: _tab,
+            onDestinationSelected: (value) => setState(() => _tab = value),
+            destinations: const [
+              NavigationDestination(
+                icon: Icon(Icons.home_outlined),
+                label: 'Home',
+              ),
+              NavigationDestination(
+                icon: Icon(Icons.style_outlined),
+                label: 'Shop',
+              ),
+            ],
+          ),
   );
 }
