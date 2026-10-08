@@ -1,0 +1,22 @@
+{
+    "name":  "TCG404",
+    "short_name":  "TCG404",
+    "start_url":  ".",
+    "display":  "standalone",
+    "background_color":  "#15161c",
+    "theme_color":  "#15161c",
+    "description":  "Collect. Trade. Discover.",
+    "prefer_related_applications":  false,
+    "icons":  [
+                  {
+                      "type":  "image/png",
+                      "sizes":  "192x192",
+                      "src":  "icons/Icon-192.png"
+                  },
+                  {
+                      "type":  "image/png",
+                      "sizes":  "512x512",
+                      "src":  "icons/Icon-512.png"
+                  }
+              ]
+}
