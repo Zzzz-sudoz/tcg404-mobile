@@ -4,9 +4,14 @@ import '../theme/app_theme.dart';
 import '../widgets/store_widgets.dart';
 
 class CartScreen extends StatelessWidget {
-  const CartScreen({super.key, required this.cart, required this.onShop});
+  const CartScreen({
+    super.key,
+    required this.cart,
+    required this.onShop,
+    required this.onCheckout,
+  });
   final CartState cart;
-  final VoidCallback onShop;
+  final VoidCallback onShop, onCheckout;
   Future<void> _quantity(BuildContext context, String id, int quantity) async {
     final error = await cart.setQuantity(id, quantity);
     if (error != null && context.mounted) {
@@ -229,6 +234,11 @@ class CartScreen extends StatelessWidget {
                       ),
                     ),
                   ],
+                ),
+                const SizedBox(height: 12),
+                FilledButton(
+                  onPressed: cart.valid && !cart.busy ? onCheckout : null,
+                  child: const Text('Continue to checkout'),
                 ),
               ],
             ),

@@ -6,7 +6,9 @@ import 'screens/product_screen.dart';
 import 'screens/shop_screen.dart';
 import 'screens/auth_screen.dart';
 import 'screens/account_screen.dart';
+import 'screens/checkout_screen.dart';
 import 'screens/orders_screen.dart';
+import 'screens/order_detail_screen.dart';
 import 'services/commerce_api.dart';
 import 'state/auth_state.dart';
 import 'models/product.dart';
@@ -109,6 +111,41 @@ class _StoreShellState extends State<StoreShell> {
       ),
     ),
   );
+  Future<void> _checkout() async {
+    if (!widget.auth.ready) await widget.auth.restore();
+    if (!mounted) return;
+    if (widget.auth.user == null && !await _signIn()) return;
+    if (!mounted) return;
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        settings: const RouteSettings(name: '/checkout'),
+        builder: (checkoutContext) => CheckoutScreen(
+          api: widget.commerce,
+          auth: widget.auth,
+          cart: widget.cart,
+          onOrders: _orders,
+          onPlaced: (order) {
+            Navigator.of(checkoutContext).pushReplacement(
+              MaterialPageRoute<void>(
+                settings: RouteSettings(name: '/orders/${order.id}'),
+                builder: (_) => OrderDetailScreen(
+                  api: widget.commerce,
+                  auth: widget.auth,
+                  id: order.id,
+                  initial: order,
+                  success: true,
+                  onShop: () {
+                    Navigator.of(context).popUntil((route) => route.isFirst);
+                    _shop('');
+                  },
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -127,7 +164,11 @@ class _StoreShellState extends State<StoreShell> {
                   onProduct: _product,
                   initialGame: _game,
                 ),
-                CartScreen(cart: widget.cart, onShop: () => _shop('')),
+                CartScreen(
+                  cart: widget.cart,
+                  onShop: () => _shop(''),
+                  onCheckout: _checkout,
+                ),
                 AccountScreen(
                   auth: widget.auth,
                   onSignIn: _signIn,
