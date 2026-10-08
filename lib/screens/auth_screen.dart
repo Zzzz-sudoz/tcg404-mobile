@@ -270,7 +270,8 @@ class _AuthScreenState extends State<AuthScreen> {
                           child: Text(
                             _register
                                 ? 'Already have an account? Sign in'
-                                : 'New to TCG404? Create an account',
+                                : "Don't have an account? Sign up",
+                            textAlign: TextAlign.center,
                           ),
                         ),
                       ],
