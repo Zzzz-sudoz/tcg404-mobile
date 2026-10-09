@@ -199,7 +199,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         ),
         const SizedBox(height: 16),
         Text(
-          'Order received',
+          'Order placed successfully.',
           style: Theme.of(context).textTheme.headlineLarge,
         ),
         const SizedBox(height: 8),
@@ -244,6 +244,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 children: [
                   for (final stage in {
                     'pending': 'Pending',
+                    'confirmed': 'Confirmed',
                     'processing': 'Processing',
                     'shipped': 'To be delivered',
                     'completed': 'Completed',
@@ -251,28 +252,17 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                   }.entries)
                     Chip(
                       avatar: Icon(
-                        stage.key ==
-                                (order.status == 'confirmed'
-                                    ? 'processing'
-                                    : order.status)
+                        stage.key == order.status
                             ? Icons.radio_button_checked
                             : Icons.radio_button_unchecked,
                         size: 18,
-                        color:
-                            stage.key ==
-                                (order.status == 'confirmed'
-                                    ? 'processing'
-                                    : order.status)
+                        color: stage.key == order.status
                             ? TcgColors.yellow
                             : TcgColors.muted,
                       ),
                       label: Text(stage.value),
                       side: BorderSide(
-                        color:
-                            stage.key ==
-                                (order.status == 'confirmed'
-                                    ? 'processing'
-                                    : order.status)
+                        color: stage.key == order.status
                             ? TcgColors.yellow
                             : TcgColors.border,
                       ),
@@ -280,7 +270,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                 ],
               ),
             const SizedBox(height: 4),
-            Text('Payment status: ${order.paymentStatus}'),
+            Text('Payment: ${order.paymentLabel}'),
             if (order.payment != null) ...[
               const SizedBox(height: 12),
               Text(

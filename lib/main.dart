@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/cart_screen.dart';
+import 'screens/admin_workspace.dart';
 import 'screens/home_screen.dart';
 import 'screens/product_screen.dart';
 import 'screens/shop_screen.dart';
@@ -25,6 +26,7 @@ Future<void> main() async {
   final cart = CartState(
     api: api,
     preferences: await SharedPreferences.getInstance(),
+    canPurchase: () => auth.ready && auth.user?.role != 'admin',
   );
   runApp(Tcg404App(api: api, cart: cart, commerce: commerce, auth: auth));
   await Future.wait([cart.restore(), auth.restore()]);
@@ -68,6 +70,31 @@ class StoreShell extends StatefulWidget {
 }
 
 class _StoreShellState extends State<StoreShell> {
+  bool _previewStore = false;
+  String? _role;
+  @override
+  void initState() {
+    super.initState();
+    _role = widget.auth.user?.role;
+    widget.auth.addListener(_accountChanged);
+  }
+
+  void _accountChanged() {
+    final role = widget.auth.user?.role;
+    if (_role == role) return;
+    setState(() {
+      _role = role;
+      _previewStore = false;
+      _tab = role == 'admin' ? 0 : 3;
+    });
+  }
+
+  @override
+  void dispose() {
+    widget.auth.removeListener(_accountChanged);
+    super.dispose();
+  }
+
   int _tab = 0;
   String _game = '';
   int _shopRevision = 0;
@@ -82,6 +109,7 @@ class _StoreShellState extends State<StoreShell> {
       builder: (_) => ProductScreen(
         api: widget.api,
         cart: widget.cart,
+        auth: widget.auth,
         id: product.id,
         onCart: () {
           Navigator.of(context).popUntil((route) => route.isFirst);
@@ -116,6 +144,10 @@ class _StoreShellState extends State<StoreShell> {
     if (!mounted) return;
     if (widget.auth.user == null && !await _signIn()) return;
     if (!mounted) return;
+    if (widget.auth.user?.role == 'admin') {
+      setState(() => _previewStore = false);
+      return;
+    }
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         settings: const RouteSettings(name: '/checkout'),
@@ -148,78 +180,124 @@ class _StoreShellState extends State<StoreShell> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    body: StoreBackdrop(
-      child: SafeArea(
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1000),
-            child: IndexedStack(
-              index: _tab,
-              children: [
-                HomeScreen(api: widget.api, onProduct: _product, onShop: _shop),
-                ShopScreen(
-                  key: ValueKey(_shopRevision),
-                  api: widget.api,
-                  onProduct: _product,
-                  initialGame: _game,
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: widget.auth,
+    builder: (context, child) {
+      final admin = widget.auth.user?.role == 'admin';
+      if (admin && !_previewStore) {
+        return AdminWorkspace(
+          api: widget.commerce,
+          auth: widget.auth,
+          onStore: () => setState(() {
+            _previewStore = true;
+            _tab = 0;
+          }),
+        );
+      }
+      final tab = admin && _tab > 1 ? 0 : _tab;
+      return Scaffold(
+        appBar: admin
+            ? AppBar(
+                actions: [
+                  TextButton(
+                    onPressed: () => setState(() => _previewStore = false),
+                    child: const Text('Admin workspace'),
+                  ),
+                ],
+              )
+            : null,
+        body: StoreBackdrop(
+          child: SafeArea(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1000),
+                child: IndexedStack(
+                  index: tab,
+                  children: [
+                    HomeScreen(
+                      api: widget.api,
+                      onProduct: _product,
+                      onShop: _shop,
+                    ),
+                    ShopScreen(
+                      key: ValueKey(_shopRevision),
+                      api: widget.api,
+                      onProduct: _product,
+                      initialGame: _game,
+                    ),
+                    if (!admin)
+                      CartScreen(
+                        cart: widget.cart,
+                        onShop: () => _shop(''),
+                        onCheckout: _checkout,
+                      ),
+                    if (!admin)
+                      AccountScreen(
+                        api: widget.commerce,
+                        onCart: () => setState(() => _tab = 2),
+                        auth: widget.auth,
+                        onSignIn: _signIn,
+                        onRegister: () => _signIn(register: true),
+                        onOrders: _orders,
+                      ),
+                  ],
                 ),
-                CartScreen(
-                  cart: widget.cart,
-                  onShop: () => _shop(''),
-                  onCheckout: _checkout,
-                ),
-                AccountScreen(
-                  auth: widget.auth,
-                  onSignIn: _signIn,
-                  onRegister: () => _signIn(register: true),
-                  onOrders: _orders,
-                ),
-              ],
+              ),
             ),
           ),
         ),
-      ),
-    ),
-    bottomNavigationBar: MediaQuery.viewInsetsOf(context).bottom > 0
-        ? null
-        : ListenableBuilder(
-            listenable: widget.cart,
-            builder: (context, child) => NavigationBar(
-              selectedIndex: _tab,
-              onDestinationSelected: (value) {
-                setState(() => _tab = value);
-                if (value == 2) widget.cart.refresh();
-              },
-              destinations: [
-                const NavigationDestination(
-                  icon: Icon(Icons.home_outlined),
-                  selectedIcon: Icon(Icons.home),
-                  label: 'Home',
-                ),
-                const NavigationDestination(
-                  icon: Icon(Icons.style_outlined),
-                  selectedIcon: Icon(Icons.style),
-                  label: 'Shop',
-                ),
-                NavigationDestination(
-                  icon: Badge(
-                    isLabelVisible: widget.cart.count > 0,
-                    label: Text('${widget.cart.count}'),
-                    child: Semantics(
-                      label:
-                          '${widget.cart.count} ${widget.cart.count == 1 ? 'card' : 'cards'} in cart',
-                      child: const Icon(Icons.shopping_bag_outlined),
+        bottomNavigationBar: MediaQuery.viewInsetsOf(context).bottom > 0
+            ? null
+            : ListenableBuilder(
+                listenable: widget.cart,
+                builder: (context, child) => NavigationBar(
+                  selectedIndex: tab,
+                  onDestinationSelected: (value) {
+                    if (admin && value == 2) {
+                      setState(() => _previewStore = false);
+                      return;
+                    }
+                    setState(() => _tab = value);
+                    if (value == 2) widget.cart.refresh();
+                  },
+                  destinations: [
+                    const NavigationDestination(
+                      icon: Icon(Icons.home_outlined),
+                      selectedIcon: Icon(Icons.home),
+                      label: 'Home',
                     ),
-                  ),
-                  label: 'Cart',
+                    const NavigationDestination(
+                      icon: Icon(Icons.style_outlined),
+                      selectedIcon: Icon(Icons.style),
+                      label: 'Shop',
+                    ),
+                    if (!admin)
+                      NavigationDestination(
+                        icon: Badge(
+                          isLabelVisible: widget.cart.count > 0,
+                          label: Text('${widget.cart.count}'),
+                          child: Semantics(
+                            label:
+                                '${widget.cart.count} ${widget.cart.count == 1 ? 'card' : 'cards'} in cart',
+                            child: const Icon(Icons.shopping_bag_outlined),
+                          ),
+                        ),
+                        label: 'Cart',
+                      ),
+                    if (!admin)
+                      const NavigationDestination(
+                        icon: Icon(Icons.person_outline),
+                        label: 'Account',
+                      ),
+                    if (admin)
+                      const NavigationDestination(
+                        icon: Icon(Icons.dashboard_outlined),
+                        label: 'Workspace',
+                      ),
+                  ],
                 ),
-                const NavigationDestination(
-                  icon: Icon(Icons.person_outline),
-                  label: 'Account',
-                ),
-              ],
-            ),
-          ),
+              ),
+      );
+    },
   );
 }

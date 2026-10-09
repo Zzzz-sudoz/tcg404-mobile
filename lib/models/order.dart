@@ -82,10 +82,15 @@ class StoreOrder {
   final double subtotal, shippingFee, tax, total;
   final DateTime createdAt;
   final Map<String, dynamic>? payment;
+  String get paymentLabel => paymentStatus == 'simulated'
+      ? 'Confirmed'
+      : paymentStatus == 'paid'
+      ? 'Paid'
+      : 'Awaiting payment';
 
   String get statusLabel => const {
     'pending': 'Pending',
-    'confirmed': 'Processing',
+    'confirmed': 'Confirmed',
     'processing': 'Processing',
     'shipped': 'To be delivered',
     'completed': 'Completed',

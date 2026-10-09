@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import '../state/auth_state.dart';
 import '../theme/app_theme.dart';
+import '../services/commerce_api.dart';
+import 'account_preferences_screen.dart';
+import 'change_password.dart';
 
 class AccountScreen extends StatefulWidget {
   const AccountScreen({
@@ -9,8 +12,12 @@ class AccountScreen extends StatefulWidget {
     required this.onSignIn,
     required this.onRegister,
     required this.onOrders,
+    this.api,
+    this.onCart,
   });
   final AuthState auth;
+  final CommerceApi? api;
+  final VoidCallback? onCart;
   final VoidCallback onSignIn, onRegister, onOrders;
 
   @override
@@ -21,6 +28,7 @@ class _AccountScreenState extends State<AccountScreen> {
   final _form = GlobalKey<FormState>();
   final _name = TextEditingController();
   int? _revision;
+  String? _section;
 
   @override
   void dispose() {
@@ -65,6 +73,94 @@ class _AccountScreenState extends State<AccountScreen> {
     }
   }
 
+  Widget _dashboardContent() {
+    if (_section == 'Addresses' || _section == 'Payment methods') {
+      return AccountPreferencesScreen(
+        key: ValueKey('${widget.auth.revision}:$_section'),
+        api: widget.api!,
+        auth: widget.auth,
+        payments: _section == 'Payment methods',
+      );
+    }
+    if (_section == 'Profile') {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text('Edit account', style: Theme.of(context).textTheme.titleLarge),
+          const SizedBox(height: 24),
+          Form(
+            key: _form,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextFormField(
+                  controller: _name,
+                  enabled: !widget.auth.busy,
+                  textCapitalization: TextCapitalization.words,
+                  autofillHints: const [AutofillHints.name],
+                  maxLength: 100,
+                  textInputAction: TextInputAction.done,
+                  onFieldSubmitted: (_) => _save(),
+                  decoration: InputDecoration(
+                    labelText: 'Name',
+                    errorText: widget.auth.fields['name'],
+                  ),
+                  validator: (value) => value == null || value.trim().isEmpty
+                      ? 'Enter your name.'
+                      : null,
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'Email address',
+                  style: TextStyle(color: TcgColors.muted),
+                ),
+                const SizedBox(height: 8),
+                SelectableText(widget.auth.user!.email),
+                const SizedBox(height: 24),
+                FilledButton(
+                  onPressed: widget.auth.busy ? null : _save,
+                  child: Text(
+                    widget.auth.busy ? 'Please wait...' : 'Save changes',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (widget.api != null)
+            ChangePassword(
+              key: ValueKey(widget.auth.revision),
+              api: widget.api!,
+              auth: widget.auth,
+            ),
+        ],
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text(
+          'Welcome, ${widget.auth.user!.name}.',
+          style: Theme.of(context).textTheme.headlineMedium,
+        ),
+        const SizedBox(height: 16),
+        const Text(
+          'Your profile, orders and saved checkout details in one place.',
+          style: TextStyle(color: TcgColors.muted),
+        ),
+        const SizedBox(height: 24),
+        OutlinedButton(
+          onPressed: () => setState(() => _section = 'Profile'),
+          child: const Text('Edit profile'),
+        ),
+        if (widget.onCart != null)
+          OutlinedButton(
+            onPressed: widget.onCart,
+            child: const Text('View cart'),
+          ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: widget.auth,
@@ -79,12 +175,13 @@ class _AccountScreenState extends State<AccountScreen> {
       if (_revision != auth.revision) {
         _revision = auth.revision;
         _name.text = user?.name ?? '';
+        _section = widget.api == null ? 'Profile' : 'Overview';
       }
       return SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 600),
+            constraints: const BoxConstraints(maxWidth: 1100),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -127,49 +224,74 @@ class _AccountScreenState extends State<AccountScreen> {
                     child: const Text('Create account'),
                   ),
                 ] else ...[
-                  Text(
-                    'Edit account',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                  const SizedBox(height: 24),
-                  Form(
-                    key: _form,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        TextFormField(
-                          controller: _name,
-                          enabled: !auth.busy,
-                          textCapitalization: TextCapitalization.words,
-                          autofillHints: const [AutofillHints.name],
-                          maxLength: 100,
-                          textInputAction: TextInputAction.done,
-                          onFieldSubmitted: (_) => _save(),
-                          decoration: InputDecoration(
-                            labelText: 'Name',
-                            errorText: auth.fields['name'],
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final navigation = [
+                        for (final section in [
+                          'Overview',
+                          'Profile',
+                          'Orders',
+                          if (widget.onCart != null) 'Cart',
+                          if (widget.api != null) ...[
+                            'Addresses',
+                            'Payment methods',
+                            'Logout',
+                          ],
+                        ])
+                          TextButton(
+                            onPressed: () {
+                              if (section == 'Logout') {
+                                _logout();
+                                return;
+                              }
+                              if (section == 'Orders') {
+                                widget.onOrders();
+                                return;
+                              }
+                              if (section == 'Cart') {
+                                widget.onCart?.call();
+                                return;
+                              }
+                              setState(() => _section = section);
+                            },
+                            style: TextButton.styleFrom(
+                              foregroundColor: section == 'Logout'
+                                  ? TcgColors.red
+                                  : _section == section
+                                  ? TcgColors.yellow
+                                  : TcgColors.ink,
+                            ),
+                            child: Text(section),
                           ),
-                          validator: (value) =>
-                              value == null || value.trim().isEmpty
-                              ? 'Enter your name.'
-                              : null,
-                        ),
-                        const SizedBox(height: 16),
-                        const Text(
-                          'Email address',
-                          style: TextStyle(color: TcgColors.muted),
-                        ),
-                        const SizedBox(height: 8),
-                        SelectableText(user.email),
-                        const SizedBox(height: 24),
-                        FilledButton(
-                          onPressed: auth.busy ? null : _save,
-                          child: Text(
-                            auth.busy ? 'Please wait...' : 'Save changes',
-                          ),
-                        ),
-                      ],
-                    ),
+                      ];
+                      return constraints.maxWidth >= 760
+                          ? Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                SizedBox(
+                                  width: 180,
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: navigation,
+                                  ),
+                                ),
+                                const SizedBox(width: 24),
+                                Expanded(child: _dashboardContent()),
+                              ],
+                            )
+                          : Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  child: Row(children: navigation),
+                                ),
+                                const SizedBox(height: 24),
+                                _dashboardContent(),
+                              ],
+                            );
+                    },
                   ),
                   const SizedBox(height: 32),
                   const Divider(),
@@ -180,15 +302,16 @@ class _AccountScreenState extends State<AccountScreen> {
                     label: const Text('Orders & tracking'),
                   ),
                   const SizedBox(height: 8),
-                  OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: TcgColors.red,
-                      side: const BorderSide(color: TcgColors.red),
+                  if (widget.api == null)
+                    OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: TcgColors.red,
+                        side: const BorderSide(color: TcgColors.red),
+                      ),
+                      onPressed: auth.busy ? null : _logout,
+                      icon: const Icon(Icons.logout),
+                      label: const Text('Logout'),
                     ),
-                    onPressed: auth.busy ? null : _logout,
-                    icon: const Icon(Icons.logout),
-                    label: const Text('Logout'),
-                  ),
                 ],
               ],
             ),

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/order.dart';
 import '../models/product.dart';
+import '../models/payment.dart';
+import '../services/account_preferences.dart';
 import '../services/commerce_api.dart';
 import '../state/auth_state.dart';
 import '../state/cart_state.dart';
@@ -44,6 +46,14 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   };
   late final CheckoutState _checkout;
   late final Listenable _changes;
+  final _paymentFields = {
+    for (final key in ['mobile', 'number', 'holder', 'expiry', 'cvc'])
+      key: TextEditingController(),
+  };
+  String _method = 'gcash';
+  String? _paymentError, _preferencesError;
+  final _edited = <String>{};
+  bool _paymentEdited = false;
   @override
   void initState() {
     super.initState();
@@ -56,13 +66,54 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     _fields['name']!.text = widget.auth.user?.name ?? '';
     _fields['email']!.text = widget.auth.user?.email ?? '';
     _restore();
+    _loadDefaults();
+  }
+
+  Future<void> _loadDefaults() async {
+    final revision = widget.auth.revision;
+    try {
+      final details = await loadPreferences(widget.api);
+      if (!mounted ||
+          revision != widget.auth.revision ||
+          _checkout.hasPending) {
+        return;
+      }
+      final address = details['addresses']!.firstOrNull;
+      if (address != null) {
+        for (final entry in address.entries) {
+          if (!_edited.contains(entry.key)) {
+            _fields[entry.key]?.text = entry.value;
+          }
+        }
+      }
+      final payment = details['payments']!.firstOrNull;
+      if (payment != null && !_paymentEdited) {
+        _method = payment['method']!;
+        for (final key in ['mobile', 'holder', 'expiry']) {
+          _paymentFields[key]!.text = payment[key] ?? '';
+        }
+      }
+      setState(() => _preferencesError = null);
+    } catch (error) {
+      if (!mounted || revision != widget.auth.revision) return;
+      if (error is ApiFailure && error.statusCode == 401) {
+        widget.auth.expire();
+        return;
+      }
+      setState(
+        () => _preferencesError =
+            'Saved details are unavailable. Enter them below or retry.',
+      );
+    }
   }
 
   Future<void> _restore() async {
     await _checkout.restore();
     if (!mounted) return;
     for (final entry in _checkout.savedShipping.entries) {
-      _fields[entry.key]?.text = entry.value;
+      if (_checkout.hasPending || !_edited.contains(entry.key)) {
+        _fields[entry.key]?.text = entry.value;
+      }
     }
     setState(() {});
   }
@@ -70,6 +121,9 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
   @override
   void dispose() {
     for (final controller in _fields.values) {
+      controller.dispose();
+    }
+    for (final controller in _paymentFields.values) {
       controller.dispose();
     }
     _scroll.dispose();
@@ -117,10 +171,24 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       return;
     }
     FocusScope.of(context).unfocus();
-    final order = await _checkout.submit({
-      for (final entry in _fields.entries) entry.key: entry.value.text.trim(),
-      'country': 'Philippines',
-    });
+    final paymentFields = {
+      for (final entry in _paymentFields.entries)
+        entry.key: entry.value.text.trim(),
+    };
+    if (!_checkout.hasPending) {
+      final error = validatePayment(_method, paymentFields);
+      setState(() => _paymentError = error);
+      if (error != null) return;
+    }
+    final order = await _checkout.submit(
+      {
+        for (final entry in _fields.entries) entry.key: entry.value.text.trim(),
+        'country': 'Philippines',
+      },
+      payment: _checkout.hasPending
+          ? null
+          : paymentReference(_method, paymentFields),
+    );
     if (!mounted) return;
     if (order != null) {
       widget.onPlaced(order);
@@ -145,6 +213,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     padding: const EdgeInsets.only(bottom: 16),
     child: TextFormField(
       controller: _fields[key],
+      onChanged: (_) => _edited.add(key),
       enabled: !_checkout.busy && !_checkout.hasPending,
       keyboardType: keyboard,
       maxLines: lines,
@@ -168,7 +237,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
             child: !_checkout.ready
                 ? const Center(child: CircularProgressIndicator())
                 : widget.auth.user?.id != _checkout.ownerId ||
-                      widget.auth.user == null
+                      widget.auth.user == null ||
+                      widget.auth.user?.role != 'customer'
                 ? StoreMessage(
                     title: 'Sign in to continue',
                     message:
@@ -203,6 +273,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                   style: TextStyle(color: TcgColors.muted),
                                 ),
                                 const SizedBox(height: 24),
+                                if (_preferencesError != null &&
+                                    !_checkout.hasPending) ...[
+                                  Text(
+                                    _preferencesError!,
+                                    style: const TextStyle(
+                                      color: TcgColors.muted,
+                                    ),
+                                  ),
+                                  TextButton(
+                                    onPressed: _loadDefaults,
+                                    child: const Text('Retry saved details'),
+                                  ),
+                                ],
                                 if (_checkout.error != null)
                                   Padding(
                                     padding: const EdgeInsets.only(bottom: 20),
@@ -327,6 +410,83 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                   'Delivery notes (optional)',
                                   lines: 2,
                                 ),
+                                if (!_checkout.hasPending) ...[
+                                  Text(
+                                    'Payment',
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.headlineMedium,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  DropdownButtonFormField<String>(
+                                    isExpanded: true,
+                                    initialValue: _method,
+                                    key: ValueKey(_method),
+                                    decoration: const InputDecoration(
+                                      labelText: 'Payment method',
+                                    ),
+                                    items: const [
+                                      DropdownMenuItem(
+                                        value: 'gcash',
+                                        child: Text('GCash'),
+                                      ),
+                                      DropdownMenuItem(
+                                        value: 'card',
+                                        child: Text('Credit / debit card'),
+                                      ),
+                                    ],
+                                    onChanged: _checkout.busy
+                                        ? null
+                                        : (value) => setState(() {
+                                            _method = value!;
+                                            _paymentEdited = true;
+                                            _paymentError = null;
+                                          }),
+                                  ),
+                                  const SizedBox(height: 16),
+                                  for (final entry
+                                      in (_method == 'gcash'
+                                              ? {
+                                                  'mobile':
+                                                      'GCash mobile number',
+                                                }
+                                              : {
+                                                  'holder': 'Name on card',
+                                                  'number': 'Card number',
+                                                  'expiry': 'Expiry (MM/YY)',
+                                                  'cvc': 'CVC',
+                                                })
+                                          .entries)
+                                    Padding(
+                                      padding: const EdgeInsets.only(
+                                        bottom: 16,
+                                      ),
+                                      child: TextFormField(
+                                        controller: _paymentFields[entry.key],
+                                        enabled: !_checkout.busy,
+                                        onChanged: (_) => _paymentEdited = true,
+                                        obscureText: entry.key == 'cvc',
+                                        enableSuggestions: false,
+                                        autocorrect: false,
+                                        keyboardType: entry.key == 'holder'
+                                            ? TextInputType.name
+                                            : TextInputType.phone,
+                                        decoration: InputDecoration(
+                                          labelText: entry.value,
+                                        ),
+                                      ),
+                                    ),
+                                  if (_paymentError != null)
+                                    Semantics(
+                                      liveRegion: true,
+                                      child: Text(
+                                        _paymentError!,
+                                        style: const TextStyle(
+                                          color: TcgColors.red,
+                                        ),
+                                      ),
+                                    ),
+                                ],
                                 const SizedBox(height: 12),
                                 Text(
                                   'Your singles',

@@ -120,6 +120,23 @@ class CheckoutState extends ChangeNotifier {
             throw const FormatException();
           }
         }
+        final payment = body['payment'];
+        if (payment != null &&
+            (payment is! Map ||
+                payment.keys.any(
+                  (key) => !['method', 'brand', 'last4'].contains(key),
+                ) ||
+                !['gcash', 'card'].contains(payment['method']) ||
+                ![
+                  'gcash',
+                  'visa',
+                  'mastercard',
+                  'card',
+                ].contains(payment['brand']) ||
+                payment['last4'] is! String ||
+                !RegExp(r'^\d{4}$').hasMatch(payment['last4']))) {
+          throw const FormatException();
+        }
         _pendingKey = saved['key'];
         _pendingBody = body;
         uncertain = true;
@@ -142,9 +159,14 @@ class CheckoutState extends ChangeNotifier {
     uncertain = false;
   }
 
-  Future<StoreOrder?> submit(Map<String, String> shipping) async {
+  Future<StoreOrder?> submit(
+    Map<String, String> shipping, {
+    Map<String, String>? payment,
+  }) async {
     if (busy || !ready || recoveryFailed) return null;
-    if (ownerId == null || auth.user?.id != ownerId) {
+    if (ownerId == null ||
+        auth.user?.id != ownerId ||
+        auth.user?.role != 'customer') {
       error = 'Sign in to continue with this checkout.';
       _notify();
       return null;
@@ -184,6 +206,10 @@ class CheckoutState extends ChangeNotifier {
               },
           ],
           'shipping': Map<String, String>.from(shipping),
+          if (payment != null)
+            'payment': {
+              for (final key in ['method', 'brand', 'last4']) key: payment[key],
+            },
         };
         final key = _uuid();
         await _storage.write(

@@ -49,6 +49,9 @@ class CommerceApi {
     'IDEMPOTENCY_CONFLICT':
         'This submission differs from its original order. Check your order history.',
     'DATABASE_UNAVAILABLE': 'The store is temporarily unavailable. Try again.',
+    'AUTH_RATE_LIMIT': 'Too many attempts. Please try again shortly.',
+    'PRODUCT_CONFLICT': 'This product changed. Reload it before saving.',
+    'ORDER_CONFLICT': 'This order changed. Reload it before saving.',
   };
   Future<Map<String, dynamic>> request(
     String method,
@@ -56,11 +59,12 @@ class CommerceApi {
     Map<String, dynamic>? body,
     Map<String, String> query = const {},
     String? idempotencyKey,
+    int? revision,
   }) async {
     if (path.startsWith('/') ||
         path.contains('..') ||
         path.contains('?') ||
-        !['GET', 'POST', 'PATCH'].contains(method)) {
+        !['GET', 'POST', 'PATCH', 'PUT'].contains(method)) {
       throw const ApiFailure('Invalid API request.');
     }
     final uri = _base.replace(
@@ -85,6 +89,7 @@ class CommerceApi {
       if (idempotencyKey != null) {
         request.headers['Idempotency-Key'] = idempotencyKey;
       }
+      if (revision != null) request.headers['If-Match'] = '$revision';
       final response = await _client
           .send(request)
           .then(http.Response.fromStream)

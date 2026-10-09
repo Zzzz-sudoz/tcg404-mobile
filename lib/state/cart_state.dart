@@ -42,7 +42,12 @@ class CartLine {
 }
 
 class CartState extends ChangeNotifier {
-  CartState({required this._api, required this._preferences});
+  CartState({
+    required this._api,
+    required this._preferences,
+    bool Function()? canPurchase,
+  }) : _canPurchase = canPurchase ?? (() => true);
+  final bool Function() _canPurchase;
 
   static const storageKey = 'tcg404.cart.v1';
   final CatalogApi _api;
@@ -172,6 +177,7 @@ class CartState extends ChangeNotifier {
   });
 
   static String? _availability(Product product, int quantity) {
+    if (quantity > 10) return 'Choose a quantity from 1 to 10.';
     if (!product.isActive) return 'This card is no longer available.';
     if (product.stock == 0) return 'Out of stock.';
     if (quantity > product.stock) {
@@ -236,6 +242,7 @@ class CartState extends ChangeNotifier {
     List<CartLine> proposed, {
     List<String>? completedOrders,
   }) async {
+    if (!_canPurchase()) return false;
     if (_restoreFailed) {
       _error = 'Restore or reset your saved cart before making changes.';
       return false;
@@ -262,26 +269,28 @@ class CartState extends ChangeNotifier {
   }
 
   Future<String?> add(Product product, int quantity) => _run(() async {
+    if (!_canPurchase()) return 'Administrators can preview cards only.';
     if (!_ready) return 'Your cart is still loading.';
-    if (quantity < 1 || quantity > 999) {
-      return 'Choose a quantity from 1 to 999.';
+    if (quantity < 1 || quantity > 10) {
+      return 'Choose a quantity from 1 to 10.';
     }
     final existing = _lines.where((line) => line.id == product.id).firstOrNull;
     if (existing == null && _lines.length >= 50) {
       return 'Your cart can hold up to 50 different cards.';
     }
     final nextQuantity = (existing?.quantity ?? 0) + quantity;
-    if (nextQuantity > 999) return 'Choose a quantity from 1 to 999.';
+    if (nextQuantity > 10) return 'Choose a quantity from 1 to 10.';
     return _change(product.id, nextQuantity);
   });
 
   Future<String?> setQuantity(String id, int quantity) => _run(() async {
+    if (!_canPurchase()) return 'Administrators can preview cards only.';
     if (!_ready) return 'Your cart is still loading.';
     if (!_lines.any((line) => line.id == id)) {
       return 'This card is not in your cart.';
     }
-    if (quantity < 1 || quantity > 999) {
-      return 'Choose a quantity from 1 to 999.';
+    if (quantity < 1 || quantity > 10) {
+      return 'Choose a quantity from 1 to 10.';
     }
     return _change(id, quantity);
   });
@@ -289,6 +298,7 @@ class CartState extends ChangeNotifier {
   Future<String?> _change(String id, int quantity) async {
     try {
       final current = await _api.product(id);
+      if (!_canPurchase()) return 'Administrators can preview cards only.';
       final reason = _availability(current, quantity);
       if (reason != null) {
         _lines = _lines
