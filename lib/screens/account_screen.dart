@@ -152,11 +152,13 @@ class _AccountScreenState extends State<AccountScreen> {
           onPressed: () => setState(() => _section = 'Profile'),
           child: const Text('Edit profile'),
         ),
-        if (widget.onCart != null)
+        if (widget.onCart != null) ...[
+          const SizedBox(height: 12),
           OutlinedButton(
             onPressed: widget.onCart,
             child: const Text('View cart'),
           ),
+        ],
       ],
     );
   }
@@ -283,9 +285,10 @@ class _AccountScreenState extends State<AccountScreen> {
                           : Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
-                                SingleChildScrollView(
-                                  scrollDirection: Axis.horizontal,
-                                  child: Row(children: navigation),
+                                Wrap(
+                                  spacing: 8,
+                                  runSpacing: 8,
+                                  children: navigation,
                                 ),
                                 const SizedBox(height: 24),
                                 _dashboardContent(),
