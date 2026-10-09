@@ -1,5 +1,31 @@
 import 'product.dart';
 
+const orderStatusLabels = {
+  'pending': 'Pending',
+  'confirmed': 'Confirmed',
+  'processing': 'Processing',
+  'shipped': 'To be delivered',
+  'completed': 'Completed',
+  'cancelled': 'Canceled',
+  'delayed': 'Delayed',
+};
+
+class OrderStatusEvent {
+  const OrderStatusEvent({required this.status, required this.at});
+  final String status;
+  final DateTime at;
+  String get label => orderStatusLabels[status]!;
+
+  factory OrderStatusEvent.fromJson(Map<String, dynamic> json) {
+    final status = _text(json, 'status');
+    final at = DateTime.tryParse(_text(json, 'at'));
+    if (!orderStatusLabels.containsKey(status) || at == null) {
+      throw const FormatException('Invalid order update.');
+    }
+    return OrderStatusEvent(status: status, at: at);
+  }
+}
+
 String _text(Map<String, dynamic> json, String key, {bool optional = false}) {
   final value = json[key] ?? (optional ? '' : null);
   if (value is! String ||
@@ -71,16 +97,29 @@ class StoreOrder {
     required this.tax,
     required this.total,
     required this.createdAt,
+    this.updatedAt,
+    List<OrderStatusEvent>? statusHistory,
     Map<String, dynamic>? payment,
   }) : items = List.unmodifiable(items),
        shipping = Map.unmodifiable(shipping),
-       payment = payment == null ? null : Map.unmodifiable(payment);
+       payment = payment == null ? null : Map.unmodifiable(payment),
+       timeline = List.unmodifiable(
+         statusHistory != null && statusHistory.isNotEmpty
+             ? statusHistory
+             : [
+                 OrderStatusEvent(status: 'pending', at: createdAt),
+                 if (status != 'pending' && updatedAt != null)
+                   OrderStatusEvent(status: status, at: updatedAt),
+               ],
+       );
 
   final String id, orderNumber, status, paymentStatus, currency;
   final List<OrderItem> items;
   final Map<String, String> shipping;
   final double subtotal, shippingFee, tax, total;
   final DateTime createdAt;
+  final DateTime? updatedAt;
+  final List<OrderStatusEvent> timeline;
   final Map<String, dynamic>? payment;
   String get paymentLabel => paymentStatus == 'simulated'
       ? 'Confirmed'
@@ -88,21 +127,24 @@ class StoreOrder {
       ? 'Paid'
       : 'Awaiting payment';
 
-  String get statusLabel => const {
-    'pending': 'Pending',
-    'confirmed': 'Confirmed',
-    'processing': 'Processing',
-    'shipped': 'To be delivered',
-    'completed': 'Completed',
-    'cancelled': 'Canceled',
-    'delayed': 'Delayed',
-  }[status]!;
+  String get statusLabel => orderStatusLabels[status]!;
 
   factory StoreOrder.fromJson(Map<String, dynamic> json) {
     final rows = json['items'];
     final address = json['shipping'];
     final payment = json['payment'];
     final createdAt = DateTime.tryParse(_text(json, 'createdAt'));
+    final updatedAt = json['updatedAt'] == null
+        ? null
+        : DateTime.tryParse(_text(json, 'updatedAt'));
+    final history = json['statusHistory'];
+    if ((json['updatedAt'] != null && updatedAt == null) ||
+        (history != null &&
+            (history is! List ||
+                history.length > 1000 ||
+                history.any((row) => row is! Map<String, dynamic>)))) {
+      throw const FormatException('Invalid order updates.');
+    }
     final status = _text(json, 'status');
     final paymentStatus = _text(json, 'paymentStatus');
     final currency = _text(json, 'currency');
@@ -155,6 +197,10 @@ class StoreOrder {
       tax: _money(json, 'tax'),
       total: _money(json, 'total'),
       createdAt: createdAt,
+      updatedAt: updatedAt,
+      statusHistory: (history as List?)
+          ?.map((row) => OrderStatusEvent.fromJson(row as Map<String, dynamic>))
+          .toList(),
       payment: payment as Map<String, dynamic>?,
     );
   }

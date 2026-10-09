@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/order.dart';
 import '../services/commerce_api.dart';
 import '../state/auth_state.dart';
 import '../theme/app_theme.dart';
 import '../widgets/store_widgets.dart';
+import '../widgets/order_status.dart';
 
 class OrderDetailScreen extends StatefulWidget {
   const OrderDetailScreen({
@@ -26,15 +28,31 @@ class OrderDetailScreen extends StatefulWidget {
   State<OrderDetailScreen> createState() => _OrderDetailScreenState();
 }
 
-class _OrderDetailScreenState extends State<OrderDetailScreen> {
+class _OrderDetailScreenState extends State<OrderDetailScreen>
+    with WidgetsBindingObserver {
   StoreOrder? _order;
   String? _identity, _error;
   int _revision = -1, _generation = 0;
   bool _loading = false;
+  Timer? _timer;
+  bool get _visible =>
+      mounted &&
+      ModalRoute.of(context)?.isCurrent == true &&
+      (WidgetsBinding.instance.lifecycleState == null ||
+          WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed);
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _visible && !_loading) _load();
+  }
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _timer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (_visible && !_loading) _load();
+    });
     _identity = widget.auth.user?.id;
     _revision = widget.auth.revision;
     if (_identity != null &&
@@ -83,7 +101,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       _revision == widget.auth.revision;
 
   Future<void> _load() async {
-    if (_identity == null) return;
+    if (_identity == null || _loading) return;
     final generation = ++_generation;
     setState(() {
       _loading = true;
@@ -103,6 +121,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       if (order.id != widget.id) {
         throw const FormatException('Invalid receipt.');
       }
+      if (data['userId'] != null && data['userId'] != _identity) {
+        throw const FormatException('Invalid receipt owner.');
+      }
       setState(() => _order = order);
     } on ApiFailure catch (error) {
       if (!_current(generation)) return;
@@ -117,7 +138,6 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
     } catch (_) {
       if (_current(generation)) {
         setState(() {
-          _order = null;
           _error = 'This receipt could not be loaded. Please retry.';
         });
       }
@@ -128,6 +148,8 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
   @override
   void dispose() {
+    _timer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     _generation++;
     widget.auth.removeListener(_authChanged);
     super.dispose();
@@ -235,39 +257,55 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               style: const TextStyle(color: TcgColors.muted),
             ),
             const SizedBox(height: 12),
-            Text('Order status: ${order.statusLabel}'),
+            Text(
+              'Order status: ${order.statusLabel}',
+              style: TextStyle(color: orderStatusColor(order.status)),
+            ),
             const SizedBox(height: 16),
-            if (order.status != 'cancelled')
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  for (final stage in {
-                    'pending': 'Pending',
-                    'confirmed': 'Confirmed',
-                    'processing': 'Processing',
-                    'shipped': 'To be delivered',
-                    'completed': 'Completed',
-                    if (order.status == 'delayed') 'delayed': 'Delayed',
-                  }.entries)
-                    Chip(
-                      avatar: Icon(
-                        stage.key == order.status
-                            ? Icons.radio_button_checked
-                            : Icons.radio_button_unchecked,
-                        size: 18,
-                        color: stage.key == order.status
-                            ? TcgColors.yellow
-                            : TcgColors.muted,
-                      ),
-                      label: Text(stage.value),
-                      side: BorderSide(
-                        color: stage.key == order.status
-                            ? TcgColors.yellow
-                            : TcgColors.border,
+            Text(
+              'Order timeline',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 12),
+            for (final event in order.timeline)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(
+                      Icons.check_circle_outline,
+                      size: 20,
+                      color: orderStatusColor(event.status),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            event.status == 'pending'
+                                ? 'Order placed'
+                                : event.label,
+                            style: TextStyle(
+                              color: orderStatusColor(event.status),
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          Text(
+                            event.at
+                                .toLocal()
+                                .toIso8601String()
+                                .replaceFirst('T', ' ')
+                                .split('.')
+                                .first,
+                            style: const TextStyle(color: TcgColors.muted),
+                          ),
+                        ],
                       ),
                     ),
-                ],
+                  ],
+                ),
               ),
             const SizedBox(height: 4),
             Text('Payment: ${order.paymentLabel}'),
@@ -421,7 +459,12 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
                       children: [
-                        if (_loading) const LinearProgressIndicator(),
+                        SizedBox(
+                          height: 4,
+                          child: _loading
+                              ? const LinearProgressIndicator()
+                              : null,
+                        ),
                         if (_error != null) ...[
                           Text(
                             _error!,

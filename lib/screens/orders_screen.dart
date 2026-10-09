@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/order.dart';
 import '../services/commerce_api.dart';
 import '../state/auth_state.dart';
 import '../theme/app_theme.dart';
 import '../widgets/store_widgets.dart';
+import '../widgets/order_status.dart';
 import 'order_detail_screen.dart';
 
 class OrdersScreen extends StatefulWidget {
@@ -21,15 +23,34 @@ class OrdersScreen extends StatefulWidget {
   State<OrdersScreen> createState() => _OrdersScreenState();
 }
 
-class _OrdersScreenState extends State<OrdersScreen> {
+class _OrdersScreenState extends State<OrdersScreen>
+    with WidgetsBindingObserver {
   List<StoreOrder> _orders = [];
   String? _identity, _error;
   int _revision = -1, _generation = 0, _page = 0, _totalPages = 1;
   bool _loading = false, _retryReset = true;
+  String _status = '';
+  Timer? _timer;
+  bool get _visible =>
+      mounted &&
+      ModalRoute.of(context)?.isCurrent == true &&
+      (WidgetsBinding.instance.lifecycleState == null ||
+          WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed);
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && _visible && !_loading) {
+      _load(background: true);
+    }
+  }
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _timer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (_visible && !_loading) _load(background: true);
+    });
     widget.auth.addListener(_authChanged);
     _identity = widget.auth.user?.id;
     _revision = widget.auth.revision;
@@ -72,43 +93,57 @@ class _OrdersScreenState extends State<OrdersScreen> {
       _identity == widget.auth.user?.id &&
       _revision == widget.auth.revision;
 
-  Future<void> _load({bool reset = true}) async {
+  Future<void> _load({bool reset = true, bool background = false}) async {
     if (_identity == null || (!reset && _loading)) return;
     final generation = ++_generation;
     final page = reset ? 1 : _page + 1;
+    final refreshPages = background && _page > 0 ? _page : page;
     setState(() {
       _loading = true;
       _error = null;
       _retryReset = reset;
     });
     try {
-      final response = await widget.api.request(
-        'GET',
-        'orders/my-orders',
-        query: {'page': '$page', 'limit': '12'},
-      );
-      if (!_current(generation)) return;
-      final data = response['data'];
-      final meta = response['meta'];
-      if (data is! List ||
-          data.length > 12 ||
-          meta is! Map<String, dynamic> ||
-          meta['page'] != page ||
-          meta['totalPages'] is! int ||
-          (meta['totalPages'] as int) < 1 ||
-          data.any((row) => row is! Map<String, dynamic>)) {
-        throw const FormatException('Invalid order history.');
-      }
-      final orders = data
-          .map((row) => StoreOrder.fromJson(row as Map<String, dynamic>))
-          .toList();
-      if (data.any((row) => row['userId'] != _identity)) {
-        throw const FormatException('Invalid order owner.');
+      final refreshed = <StoreOrder>[];
+      var totalPages = _totalPages;
+      var loadedPage = page;
+      for (var next = page; next <= refreshPages; next++) {
+        final response = await widget.api.request(
+          'GET',
+          'orders/my-orders',
+          query: {
+            'page': '$next',
+            'limit': '12',
+            if (_status.isNotEmpty) 'status': _status,
+          },
+        );
+        if (!_current(generation)) return;
+        final data = response['data'];
+        final meta = response['meta'];
+        if (data is! List ||
+            data.length > 12 ||
+            meta is! Map<String, dynamic> ||
+            meta['page'] != next ||
+            meta['totalPages'] is! int ||
+            (meta['totalPages'] as int) < 1 ||
+            data.any((row) => row is! Map<String, dynamic>)) {
+          throw const FormatException('Invalid order history.');
+        }
+        final orders = data
+            .map((row) => StoreOrder.fromJson(row as Map<String, dynamic>))
+            .toList();
+        if (data.any((row) => row['userId'] != _identity)) {
+          throw const FormatException('Invalid order owner.');
+        }
+        refreshed.addAll(orders);
+        totalPages = meta['totalPages'] as int;
+        loadedPage = next;
+        if (next >= totalPages) break;
       }
       setState(() {
-        _orders = reset ? orders : [..._orders, ...orders];
-        _page = page;
-        _totalPages = meta['totalPages'] as int;
+        _orders = reset ? refreshed : [..._orders, ...refreshed];
+        _page = loadedPage;
+        _totalPages = totalPages;
       });
     } on ApiFailure catch (error) {
       if (!_current(generation)) return;
@@ -130,6 +165,8 @@ class _OrdersScreenState extends State<OrdersScreen> {
 
   @override
   void dispose() {
+    _timer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     _generation++;
     widget.auth.removeListener(_authChanged);
     super.dispose();
@@ -142,7 +179,9 @@ class _OrdersScreenState extends State<OrdersScreen> {
       actions: [
         IconButton(
           tooltip: 'Refresh orders',
-          onPressed: _loading || _identity == null ? null : _load,
+          onPressed: _loading || _identity == null
+              ? null
+              : () => _load(background: true),
           icon: const Icon(Icons.refresh),
         ),
       ],
@@ -159,7 +198,7 @@ class _OrdersScreenState extends State<OrdersScreen> {
                     icon: Icons.receipt_long_outlined,
                   )
                 : RefreshIndicator(
-                    onRefresh: _load,
+                    onRefresh: () => _load(background: true),
                     child: ListView(
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
@@ -174,6 +213,36 @@ class _OrdersScreenState extends State<OrdersScreen> {
                           style: TextStyle(color: TcgColors.muted),
                         ),
                         const SizedBox(height: 24),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: [
+                            for (final category in const {
+                              '': 'All orders',
+                              'pending': 'Orders',
+                              'processing': 'Processing',
+                              'shipped': 'To be delivered',
+                              'completed': 'Completed',
+                              'cancelled': 'Canceled',
+                              'delayed': 'Delayed',
+                            }.entries)
+                              ChoiceChip(
+                                label: Text(category.value),
+                                selected: _status == category.key,
+                                onSelected: (_) {
+                                  if (_status == category.key) return;
+                                  setState(() {
+                                    _status = category.key;
+                                    _orders = [];
+                                    _page = 0;
+                                    _totalPages = 1;
+                                  });
+                                  _load();
+                                },
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
                         if (_orders.isEmpty && _loading)
                           const Padding(
                             padding: EdgeInsets.all(48),
@@ -181,8 +250,12 @@ class _OrdersScreenState extends State<OrdersScreen> {
                           )
                         else if (_orders.isEmpty && _error == null)
                           StoreMessage(
-                            title: 'No orders yet',
-                            message: 'Find the next card for your collection.',
+                            title: _status.isEmpty
+                                ? 'No orders yet'
+                                : 'No orders in this category',
+                            message: _status.isEmpty
+                                ? 'Find the next card for your collection.'
+                                : 'Choose another category or refresh for updates.',
                             icon: Icons.receipt_long_outlined,
                             action: 'Back to shop',
                             onAction:
@@ -197,16 +270,21 @@ class _OrdersScreenState extends State<OrdersScreen> {
                               borderRadius: BorderRadius.circular(16),
                               clipBehavior: Clip.antiAlias,
                               child: InkWell(
-                                onTap: () => Navigator.of(context).push(
-                                  MaterialPageRoute<void>(
-                                    builder: (_) => OrderDetailScreen(
-                                      api: widget.api,
-                                      auth: widget.auth,
-                                      id: order.id,
-                                      initial: order,
+                                onTap: () async {
+                                  await Navigator.of(context).push(
+                                    MaterialPageRoute<void>(
+                                      builder: (_) => OrderDetailScreen(
+                                        api: widget.api,
+                                        auth: widget.auth,
+                                        id: order.id,
+                                        initial: order,
+                                      ),
                                     ),
-                                  ),
-                                ),
+                                  );
+                                  if (mounted && _identity != null) {
+                                    _load(background: true);
+                                  }
+                                },
                                 child: Padding(
                                   padding: const EdgeInsets.all(18),
                                   child: Column(
@@ -249,8 +327,10 @@ class _OrdersScreenState extends State<OrdersScreen> {
                                           ),
                                           Text(
                                             order.statusLabel,
-                                            style: const TextStyle(
-                                              color: TcgColors.lavender,
+                                            style: TextStyle(
+                                              color: orderStatusColor(
+                                                order.status,
+                                              ),
                                             ),
                                           ),
                                           Text(
@@ -277,7 +357,10 @@ class _OrdersScreenState extends State<OrdersScreen> {
                           OutlinedButton(
                             onPressed: _loading
                                 ? null
-                                : () => _load(reset: _retryReset),
+                                : () => _load(
+                                    reset: _retryReset,
+                                    background: _retryReset,
+                                  ),
                             child: const Text('Retry'),
                           ),
                         ],
