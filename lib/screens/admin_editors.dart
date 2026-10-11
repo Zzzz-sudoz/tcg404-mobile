@@ -686,7 +686,7 @@ class _AdminMovementsScreenState extends State<AdminMovementsScreen> {
                               ),
                               const SizedBox(height: 12),
                               Text(
-                                '${row['type']} · ${row['stockBefore']} → ${row['stockAfter']}',
+                                '${row['type']} · ${row['stockBefore']} to ${row['stockAfter']}',
                               ),
                               const SizedBox(height: 8),
                               Text('${row['createdAt']}'),

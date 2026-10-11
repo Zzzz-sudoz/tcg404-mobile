@@ -279,8 +279,14 @@ class CartState extends ChangeNotifier {
       return 'Your cart can hold up to 50 different cards.';
     }
     final nextQuantity = (existing?.quantity ?? 0) + quantity;
-    if (nextQuantity > 10) return 'Choose a quantity from 1 to 10.';
-    return _change(product.id, nextQuantity);
+    if (nextQuantity > 10) {
+      return 'You already have ${existing!.quantity} in your cart. The limit is 10 per card.';
+    }
+    return _change(
+      product.id,
+      nextQuantity,
+      existingQuantity: existing?.quantity ?? 0,
+    );
   });
 
   Future<String?> setQuantity(String id, int quantity) => _run(() async {
@@ -295,7 +301,11 @@ class CartState extends ChangeNotifier {
     return _change(id, quantity);
   });
 
-  Future<String?> _change(String id, int quantity) async {
+  Future<String?> _change(
+    String id,
+    int quantity, {
+    int existingQuantity = 0,
+  }) async {
     try {
       final current = await _api.product(id);
       if (!_canPurchase()) return 'Administrators can preview cards only.';
@@ -316,6 +326,12 @@ class CartState extends ChangeNotifier {
             )
             .toList();
         _updateNotice();
+        if (existingQuantity > 0 &&
+            current.isActive &&
+            quantity > current.stock) {
+          final remaining = (current.stock - existingQuantity).clamp(0, 10);
+          return 'You already have $existingQuantity in your cart. ${remaining > 0 ? 'You can add up to $remaining more.' : 'No more available to add.'}';
+        }
         return reason;
       }
       final changed = CartLine(

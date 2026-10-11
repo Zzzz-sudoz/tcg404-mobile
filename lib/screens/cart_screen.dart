@@ -166,6 +166,14 @@ class CartScreen extends StatelessWidget {
                               line.reason!,
                               style: const TextStyle(color: TcgColors.red),
                             ),
+                          if (line.product != null)
+                            Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              child: Text(
+                                'Stock: ${line.product!.stock} available. Limit: ${line.product!.stock.clamp(0, 10)} per card.',
+                                style: const TextStyle(color: TcgColors.muted),
+                              ),
+                            ),
                           if (line.priceChanged)
                             const Text(
                               'Price updated to the current listing.',
@@ -183,7 +191,10 @@ class CartScreen extends StatelessWidget {
                             children: [
                               QuantityControl(
                                 value: line.quantity,
-                                maximum: line.product?.stock ?? 0,
+                                maximum: (line.product?.stock ?? 0).clamp(
+                                  0,
+                                  10,
+                                ),
                                 enabled: !cart.busy && line.product != null,
                                 onChanged: (value) =>
                                     _quantity(context, line.id, value),

@@ -34,32 +34,46 @@ class _ProductScreenState extends State<ProductScreen> {
     _product = widget.api.product(widget.id);
   }
 
-  Future<void> _add(Product product) async {
+  Future<void> _add(Product product, int quantity) async {
     setState(() => _adding = true);
-    final error = await widget.cart.add(product, _quantity);
+    final error = await widget.cart.add(product, quantity);
     if (!mounted) return;
     setState(() => _adding = false);
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
+    if (error != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error)));
+      return;
+    }
+    final checkCart = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Item added to cart', textAlign: TextAlign.center),
+        titlePadding: const EdgeInsets.all(24),
+        contentPadding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(error ?? 'Added to your collection cart'),
-            if (error == null)
-              TextButton(
-                onPressed: widget.onCart,
-                child: const Text('View cart'),
-              ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Check cart'),
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Continue shopping'),
+            ),
           ],
         ),
       ),
     );
+    if (checkCart == true && mounted) widget.onCart();
   }
 
   @override
   Widget build(BuildContext context) => ListenableBuilder(
-    listenable: widget.auth ?? widget.cart,
+    listenable: Listenable.merge([widget.auth, widget.cart]),
     builder: (context, child) => Scaffold(
       appBar: AppBar(title: const Text('The single')),
       body: StoreBackdrop(
@@ -91,7 +105,16 @@ class _ProductScreenState extends State<ProductScreen> {
                   ),
                 );
               }
-              final product = snapshot.data!;
+              final line = widget.cart.lines
+                  .where((line) => line.id == widget.id)
+                  .firstOrNull;
+              final product = line?.product ?? snapshot.data!;
+              final inCart = line?.quantity ?? 0;
+              final remaining = (product.stock.clamp(0, 10) - inCart).clamp(
+                0,
+                10,
+              );
+              final quantity = _quantity.clamp(1, remaining.clamp(1, 10));
               return Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 800),
@@ -210,25 +233,40 @@ class _ProductScreenState extends State<ProductScreen> {
                             runSpacing: 8,
                             children: [
                               QuantityControl(
-                                value: _quantity,
-                                maximum: product.stock.clamp(0, 10),
-                                enabled: !_adding && product.stock > 0,
+                                value: quantity,
+                                maximum: remaining,
+                                enabled: !_adding && remaining > 0,
                                 onChanged: (value) =>
                                     setState(() => _quantity = value),
                               ),
                               FilledButton.icon(
-                                onPressed: !_adding && product.stock > 0
-                                    ? () => _add(product)
+                                onPressed: !_adding && remaining > 0
+                                    ? () => _add(product, quantity)
                                     : null,
                                 icon: const Icon(Icons.add_shopping_cart),
                                 label: Text(
                                   _adding
                                       ? 'Adding…'
-                                      : product.stock > 0
+                                      : product.stock == 0
+                                      ? 'Out of stock'
+                                      : remaining > 0
                                       ? 'Add to cart'
-                                      : 'Out of stock',
+                                      : 'In your cart',
                                 ),
                               ),
+                              if (inCart > 0) ...[
+                                Text(
+                                  '$inCart in your cart.${remaining == 0
+                                      ? product.stock <= inCart
+                                            ? ' All available stock is already in your cart.'
+                                            : ' The limit is 10 per card.'
+                                      : ''}',
+                                ),
+                                TextButton(
+                                  onPressed: widget.onCart,
+                                  child: const Text('Check cart'),
+                                ),
+                              ],
                             ],
                           ),
                         ),
