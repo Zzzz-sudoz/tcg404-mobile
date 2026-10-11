@@ -17,6 +17,8 @@ import 'services/catalog_api.dart';
 import 'state/cart_state.dart';
 import 'theme/app_theme.dart';
 import 'widgets/store_widgets.dart';
+import 'widgets/favorites_scope.dart';
+import 'screens/favorites_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -49,6 +51,8 @@ class Tcg404App extends StatelessWidget {
     title: 'TCG404',
     debugShowCheckedModeBanner: false,
     theme: storeTheme(),
+    builder: (context, child) =>
+        FavoritesScope(api: commerce, auth: auth, child: child!),
     home: StoreShell(api: api, cart: cart, commerce: commerce, auth: auth),
   );
 }
@@ -111,6 +115,7 @@ class _StoreShellState extends State<StoreShell> {
         cart: widget.cart,
         auth: widget.auth,
         id: product.id,
+        onSignIn: _signIn,
         onCart: () {
           Navigator.of(context).popUntil((route) => route.isFirst);
           setState(() => _tab = 2);
@@ -233,6 +238,12 @@ class _StoreShellState extends State<StoreShell> {
                       ),
                     if (!admin)
                       AccountScreen(
+                        onFavorites: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) =>
+                                FavoritesScreen(onProduct: _product),
+                          ),
+                        ),
                         api: widget.commerce,
                         onCart: () => setState(() => _tab = 2),
                         auth: widget.auth,

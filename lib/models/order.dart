@@ -1,11 +1,12 @@
 import 'product.dart';
+import 'return_request.dart';
 
 const orderStatusLabels = {
   'pending': 'Pending',
   'confirmed': 'Confirmed',
   'processing': 'Processing',
   'shipped': 'To be delivered',
-  'completed': 'Completed',
+  'completed': 'Delivered',
   'cancelled': 'Canceled',
   'delayed': 'Delayed',
 };
@@ -98,6 +99,10 @@ class StoreOrder {
     required this.total,
     required this.createdAt,
     this.updatedAt,
+    this.revision = 0,
+    this.canCancel = false,
+    this.canReturn = false,
+    this.returnRequest,
     List<OrderStatusEvent>? statusHistory,
     Map<String, dynamic>? payment,
   }) : items = List.unmodifiable(items),
@@ -119,6 +124,9 @@ class StoreOrder {
   final double subtotal, shippingFee, tax, total;
   final DateTime createdAt;
   final DateTime? updatedAt;
+  final int revision;
+  final bool canCancel, canReturn;
+  final ReturnRequest? returnRequest;
   final List<OrderStatusEvent> timeline;
   final Map<String, dynamic>? payment;
   String get paymentLabel => paymentStatus == 'simulated'
@@ -138,6 +146,18 @@ class StoreOrder {
         ? null
         : DateTime.tryParse(_text(json, 'updatedAt'));
     final history = json['statusHistory'];
+    final actions = json['actions'];
+    final returnRequest = json['returnRequest'];
+    final revision = json['revision'] ?? 0;
+    if (revision is! int ||
+        revision < 0 ||
+        (actions != null &&
+            (actions is! Map ||
+                actions['canCancel'] is! bool ||
+                actions['canReturn'] is! bool)) ||
+        (returnRequest != null && returnRequest is! Map<String, dynamic>)) {
+      throw const FormatException('Invalid order actions.');
+    }
     if ((json['updatedAt'] != null && updatedAt == null) ||
         (history != null &&
             (history is! List ||
@@ -198,6 +218,12 @@ class StoreOrder {
       total: _money(json, 'total'),
       createdAt: createdAt,
       updatedAt: updatedAt,
+      revision: revision,
+      canCancel: actions is Map && actions['canCancel'] == true,
+      canReturn: actions is Map && actions['canReturn'] == true,
+      returnRequest: returnRequest == null
+          ? null
+          : ReturnRequest.fromJson(returnRequest as Map<String, dynamic>),
       statusHistory: (history as List?)
           ?.map((row) => OrderStatusEvent.fromJson(row as Map<String, dynamic>))
           .toList(),

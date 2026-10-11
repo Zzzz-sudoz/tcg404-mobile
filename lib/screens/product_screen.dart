@@ -5,6 +5,7 @@ import '../state/cart_state.dart';
 import '../state/auth_state.dart';
 import '../theme/app_theme.dart';
 import '../widgets/store_widgets.dart';
+import '../widgets/favorites_scope.dart';
 
 class ProductScreen extends StatefulWidget {
   const ProductScreen({
@@ -14,12 +15,14 @@ class ProductScreen extends StatefulWidget {
     required this.id,
     required this.onCart,
     this.auth,
+    this.onSignIn,
   });
   final CatalogApi api;
   final CartState cart;
   final String id;
   final VoidCallback onCart;
   final AuthState? auth;
+  final Future<bool> Function()? onSignIn;
   @override
   State<ProductScreen> createState() => _ProductScreenState();
 }
@@ -119,6 +122,7 @@ class _ProductScreenState extends State<ProductScreen> {
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 800),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Expanded(
                         child: ListView(
@@ -152,6 +156,10 @@ class _ProductScreenState extends State<ProductScreen> {
                             Text(
                               product.name,
                               style: Theme.of(context).textTheme.headlineLarge,
+                            ),
+                            FavoriteButton(
+                              product: product,
+                              onSignIn: widget.onSignIn,
                             ),
                             const SizedBox(height: 12),
                             Text(
@@ -232,12 +240,22 @@ class _ProductScreenState extends State<ProductScreen> {
                             spacing: 16,
                             runSpacing: 8,
                             children: [
-                              QuantityControl(
-                                value: quantity,
-                                maximum: remaining,
-                                enabled: !_adding && remaining > 0,
-                                onChanged: (value) =>
-                                    setState(() => _quantity = value),
+                              Column(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    'Quantity',
+                                    style: TextStyle(color: TcgColors.muted),
+                                  ),
+                                  QuantityControl(
+                                    value: quantity,
+                                    maximum: remaining,
+                                    enabled: !_adding && remaining > 0,
+                                    onChanged: (value) =>
+                                        setState(() => _quantity = value),
+                                  ),
+                                ],
                               ),
                               FilledButton.icon(
                                 onPressed: !_adding && remaining > 0

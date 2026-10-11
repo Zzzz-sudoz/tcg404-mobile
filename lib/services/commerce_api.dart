@@ -52,6 +52,8 @@ class CommerceApi {
     'AUTH_RATE_LIMIT': 'Too many attempts. Please try again shortly.',
     'PRODUCT_CONFLICT': 'This product changed. Reload it before saving.',
     'ORDER_CONFLICT': 'This order changed. Reload it before saving.',
+    'RETURN_CONFLICT': 'This return changed or is no longer eligible. Refresh the order.',
+    'RETURN_NOT_FOUND': 'This return request could not be found.',
   };
   Future<Map<String, dynamic>> request(
     String method,
@@ -64,7 +66,7 @@ class CommerceApi {
     if (path.startsWith('/') ||
         path.contains('..') ||
         path.contains('?') ||
-        !['GET', 'POST', 'PATCH', 'PUT'].contains(method)) {
+        !['GET', 'POST', 'PATCH', 'PUT', 'DELETE'].contains(method)) {
       throw const ApiFailure('Invalid API request.');
     }
     final uri = _base.replace(

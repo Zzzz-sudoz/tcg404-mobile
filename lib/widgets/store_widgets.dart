@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/product.dart';
 import '../theme/app_theme.dart';
+import 'favorites_scope.dart';
 
 String money(double value) =>
     '₱${(priceToCents(value) / 100).toStringAsFixed(2)}';
@@ -99,7 +100,17 @@ class ProductTile extends StatelessWidget {
                   color: TcgColors.raised,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: CardArtwork(product: product),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    CardArtwork(product: product),
+                    Positioned(
+                      top: 4,
+                      right: 4,
+                      child: FavoriteButton(product: product),
+                    ),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 12),

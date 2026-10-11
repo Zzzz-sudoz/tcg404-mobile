@@ -222,7 +222,7 @@ class _OrdersScreenState extends State<OrdersScreen>
                               'pending': 'Orders',
                               'processing': 'Processing',
                               'shipped': 'To be delivered',
-                              'completed': 'Completed',
+                              'completed': 'Delivered',
                               'cancelled': 'Canceled',
                               'delayed': 'Delayed',
                             }.entries)

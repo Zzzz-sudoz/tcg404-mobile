@@ -9,7 +9,7 @@ import 'admin_editors.dart';
 List<String> adminStatusOptions(String status) => switch (status) {
   'pending' || 'confirmed' => ['processing', 'shipped', 'cancelled', 'delayed'],
   'processing' => ['shipped', 'cancelled', 'delayed'],
-  'shipped' => ['completed', 'cancelled', 'delayed'],
+  'shipped' => ['completed', 'delayed'],
   'delayed' => ['processing', 'shipped', 'cancelled'],
   _ => [],
 };
@@ -19,7 +19,7 @@ String adminStatusLabel(String value) => switch (value) {
   'shipped' => 'To be delivered',
   'cancelled' => 'Canceled',
   'pending' => 'Pending',
-  'completed' => 'Completed',
+  'completed' => 'Delivered',
   'delayed' => 'Delayed',
   _ => value,
 };

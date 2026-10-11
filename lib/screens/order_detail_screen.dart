@@ -6,6 +6,7 @@ import '../state/auth_state.dart';
 import '../theme/app_theme.dart';
 import '../widgets/store_widgets.dart';
 import '../widgets/order_status.dart';
+import '../widgets/order_after_sales.dart';
 
 class OrderDetailScreen extends StatefulWidget {
   const OrderDetailScreen({
@@ -477,6 +478,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
                         ],
                         const SizedBox(height: 12),
                         _receipt(_order!),
+                        OrderAfterSales(order:_order!,api:widget.api,auth:widget.auth,refresh:_load),
                       ],
                     ),
                   ),

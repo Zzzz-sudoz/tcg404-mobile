@@ -14,10 +14,12 @@ class AccountScreen extends StatefulWidget {
     required this.onOrders,
     this.api,
     this.onCart,
+    this.onFavorites,
   });
   final AuthState auth;
   final CommerceApi? api;
   final VoidCallback? onCart;
+  final VoidCallback? onFavorites;
   final VoidCallback onSignIn, onRegister, onOrders;
 
   @override
@@ -233,6 +235,7 @@ class _AccountScreenState extends State<AccountScreen> {
                           'Overview',
                           'Profile',
                           'Orders',
+                          if (widget.onFavorites != null) 'Favorites',
                           if (widget.onCart != null) 'Cart',
                           if (widget.api != null) ...[
                             'Addresses',
@@ -248,6 +251,10 @@ class _AccountScreenState extends State<AccountScreen> {
                               }
                               if (section == 'Orders') {
                                 widget.onOrders();
+                                return;
+                              }
+                              if (section == 'Favorites') {
+                                widget.onFavorites?.call();
                                 return;
                               }
                               if (section == 'Cart') {
