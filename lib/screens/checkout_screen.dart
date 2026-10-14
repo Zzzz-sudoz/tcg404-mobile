@@ -213,6 +213,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     padding: const EdgeInsets.only(bottom: 16),
     child: TextFormField(
       controller: _fields[key],
+      autovalidateMode: AutovalidateMode.onUserInteraction,
       onChanged: (_) => _edited.add(key),
       enabled: !_checkout.busy && !_checkout.hasPending,
       keyboardType: keyboard,
@@ -466,9 +467,24 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                         bottom: 16,
                                       ),
                                       child: TextFormField(
+                                        key: ValueKey('payment-${entry.key}'),
                                         controller: _paymentFields[entry.key],
+                                        autovalidateMode:
+                                            AutovalidateMode.onUserInteraction,
+                                        validator: (value) =>
+                                            validatePaymentField(
+                                              entry.key,
+                                              value?.trim(),
+                                            ),
                                         enabled: !_checkout.busy,
-                                        onChanged: (_) => _paymentEdited = true,
+                                        onChanged: (_) {
+                                          _paymentEdited = true;
+                                          if (_paymentError != null) {
+                                            setState(
+                                              () => _paymentError = null,
+                                            );
+                                          }
+                                        },
                                         obscureText: entry.key == 'cvc',
                                         enableSuggestions: false,
                                         autocorrect: false,
