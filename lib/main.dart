@@ -17,7 +17,6 @@ import 'services/catalog_api.dart';
 import 'state/cart_state.dart';
 import 'theme/app_theme.dart';
 import 'theme/theme_state.dart';
-import 'widgets/theme_mode_switch.dart';
 import 'widgets/store_widgets.dart';
 import 'widgets/favorites_scope.dart';
 import 'screens/favorites_screen.dart';
@@ -237,16 +236,16 @@ class _StoreShellState extends State<StoreShell> {
       }
       final tab = admin && _tab > 1 ? 0 : _tab;
       return Scaffold(
-        appBar: AppBar(
-          actions: [
-            const ThemeModeSwitch(),
-            if (admin)
-              TextButton(
-                onPressed: () => setState(() => _previewStore = false),
-                child: const Text('Admin workspace'),
-              ),
-          ],
-        ),
+        appBar: admin
+            ? AppBar(
+                actions: [
+                  TextButton(
+                    onPressed: () => setState(() => _previewStore = false),
+                    child: const Text('Admin workspace'),
+                  ),
+                ],
+              )
+            : null,
         body: StoreBackdrop(
           child: SafeArea(
             child: Center(

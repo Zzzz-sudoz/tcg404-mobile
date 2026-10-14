@@ -6,7 +6,9 @@ class ThemeModeSwitch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final state = ThemeScope.of(context);
-    final dark = Theme.of(context).brightness == Brightness.dark;
+    final dark = state == null
+        ? Theme.of(context).brightness == Brightness.dark
+        : state.mode == ThemeMode.dark;
     return Semantics(
       label: 'Dark mode',
       toggled: dark,
@@ -20,7 +22,8 @@ class ThemeModeSwitch extends StatelessWidget {
             child: AnimatedContainer(
               duration: MediaQuery.disableAnimationsOf(context)
                   ? Duration.zero
-                  : const Duration(milliseconds: 300),
+                  : const Duration(milliseconds: 350),
+              curve: Curves.easeInOutCubic,
               width: 96,
               height: 48,
               decoration: BoxDecoration(
@@ -46,7 +49,8 @@ class ThemeModeSwitch extends StatelessWidget {
                   AnimatedAlign(
                     duration: MediaQuery.disableAnimationsOf(context)
                         ? Duration.zero
-                        : const Duration(milliseconds: 300),
+                        : const Duration(milliseconds: 350),
+                    curve: Curves.easeInOutCubic,
                     alignment: dark
                         ? Alignment.centerRight
                         : Alignment.centerLeft,

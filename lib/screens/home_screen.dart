@@ -3,6 +3,7 @@ import '../models/product.dart';
 import '../services/catalog_api.dart';
 import '../theme/app_theme.dart';
 import '../widgets/store_widgets.dart';
+import '../widgets/theme_mode_switch.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
@@ -50,14 +51,21 @@ class _HomeScreenState extends State<HomeScreen> {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(20),
       children: [
-        Text(
-          'TCG404.',
-          style: TextStyle(
-            fontFamily: 'Barlow',
-            fontSize: 34,
-            fontWeight: FontWeight.w800,
-            color: TcgColors.of(context).yellow,
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'TCG404.',
+                style: TextStyle(
+                  fontFamily: 'Barlow',
+                  fontSize: 34,
+                  fontWeight: FontWeight.w800,
+                  color: TcgColors.of(context).yellow,
+                ),
+              ),
+            ),
+            const ThemeModeSwitch(),
+          ],
         ),
         Text(
           'Collect. Trade. Discover.',
