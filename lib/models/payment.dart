@@ -24,15 +24,9 @@ String? validatePaymentField(String field, String? value, {DateTime? now}) {
     case 'number':
       final number = text.replaceAll(RegExp(r'[ -]'), '');
       if (!RegExp(r'^\d{12,19}$').hasMatch(number)) {
-        return 'Enter a valid card number with 12 to 19 digits.';
+        return 'Enter 12 to 19 digits.';
       }
-      var sum = 0;
-      for (var i = 0; i < number.length; i++) {
-        var digit = int.parse(number[number.length - 1 - i]);
-        if (i.isOdd) digit *= 2;
-        sum += digit > 9 ? digit - 9 : digit;
-      }
-      return sum % 10 == 0 ? null : 'Enter a valid card number.';
+      return null;
     case 'holder':
       return text.trim().isEmpty || text.length > 100
           ? 'Enter the name on your card.'
