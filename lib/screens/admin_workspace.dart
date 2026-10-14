@@ -5,6 +5,7 @@ import '../state/auth_state.dart';
 import '../theme/app_theme.dart';
 import '../widgets/store_widgets.dart';
 import 'admin_editors.dart';
+import 'filter_sheet.dart' show gameLabels;
 
 List<String> adminStatusOptions(String status) => switch (status) {
   'pending' || 'confirmed' => ['processing', 'shipped', 'cancelled', 'delayed'],
@@ -108,7 +109,7 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
         if (_section == 4) 'stock': _stock,
       },
     );
-    _forecast = _analyticsTab == 4
+    _forecast = _section == 0 || _analyticsTab == 4
         ? widget.api.request('GET', 'admin/forecast')
         : null;
   }
@@ -568,7 +569,6 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
     ),
   );
   Widget _metric(String label, String value, Color color) => Container(
-    width: 230,
     padding: const EdgeInsets.all(20),
     decoration: BoxDecoration(
       borderRadius: BorderRadius.circular(16),
@@ -592,9 +592,8 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
   Widget _analytics(Map<String, dynamic> data) => Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      Wrap(
-        spacing: 16,
-        runSpacing: 16,
+      ResponsiveAdminPanels(
+        minWidth: 220,
         children: [
           _metric(
             'Paid revenue',
@@ -602,13 +601,17 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
             TcgColors.yellow,
           ),
           _metric(
-            'Completed value',
+            'Net order value',
             money((data['orderValue'] as num).toDouble()),
             const Color(0xff8ed8c2),
           ),
           _metric('Orders created', '${data['orders']}', TcgColors.lavender),
           if (_section == 0) ...[
-            _metric('Units sold', '${data['unitsSold']}', TcgColors.yellow),
+            _metric(
+              'Net units sold',
+              '${data['netUnitsSold'] ?? data['unitsSold']}',
+              TcgColors.yellow,
+            ),
             _metric(
               'Low / out of stock',
               '${data['inventory']['lowStock']} / ${data['inventory']['outOfStock']}',
@@ -618,181 +621,539 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
         ],
       ),
       const SizedBox(height: 28),
-      Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          for (var i = 0; i < 5; i++)
-            ChoiceChip(
-              label: Text(
-                ['Sales', 'Games', 'Best sellers', 'Orders', 'Forecast'][i],
+      if (_section == 0) ...[
+        ResponsiveAdminPanels(
+          children: [
+            _panel(
+              AdminSalesChart(
+                rows: (data['trend'] as List).cast<Map<String, dynamic>>(),
               ),
-              selected: _analyticsTab == i,
-              onSelected: (_) => setState(() {
-                _analyticsTab = i;
-                if (i == 4) {
-                  _forecast ??= widget.api.request('GET', 'admin/forecast');
-                }
-              }),
             ),
-        ],
-      ),
-      const SizedBox(height: 20),
-      Card(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: switch (_analyticsTab) {
-            0 => AdminSalesChart(
-              rows: (data['trend'] as List).cast<Map<String, dynamic>>(),
+            _panel(_fulfillment(data)),
+          ],
+        ),
+        const SizedBox(height: 20),
+        ResponsiveAdminPanels(
+          children: [
+            _panel(_games(data)),
+            _panel(
+              AdminBestSellers(
+                rows: (data['topProducts'] as List)
+                    .cast<Map<String, dynamic>>(),
+              ),
             ),
-            1 => Column(
+            _panel(_accounting(data)),
+          ],
+        ),
+        const SizedBox(height: 20),
+        _panel(_forecastPanel()),
+      ] else ...[
+        Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: [
+            for (var i = 0; i < 5; i++)
+              ChoiceChip(
+                label: Text(
+                  ['Sales', 'Games', 'Best sellers', 'Orders', 'Forecast'][i],
+                ),
+                selected: _analyticsTab == i,
+                onSelected: (_) => setState(() {
+                  _analyticsTab = i;
+                  if (i == 4) {
+                    _forecast ??= widget.api.request('GET', 'admin/forecast');
+                  }
+                }),
+              ),
+          ],
+        ),
+        const SizedBox(height: 20),
+        Card(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: switch (_analyticsTab) {
+              0 => AdminSalesChart(
+                rows: (data['trend'] as List).cast<Map<String, dynamic>>(),
+              ),
+              1 => _games(data),
+              2 => AdminBestSellers(
+                rows: (data['topProducts'] as List)
+                    .cast<Map<String, dynamic>>(),
+              ),
+              3 => _fulfillment(data),
+              _ => _forecastPanel(),
+            },
+          ),
+        ),
+      ],
+    ],
+  );
+
+  Widget _panel(Widget child) => Card(
+    margin: EdgeInsets.zero,
+    child: Padding(padding: const EdgeInsets.all(20), child: child),
+  );
+
+  Widget _games(Map<String, dynamic> data) {
+    final rows = (data['byGame'] as List).cast<Map<String, dynamic>>();
+    final maximum = rows.fold<num>(
+      1,
+      (value, row) => math.max(value, row['unitsSold'] as num),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('Demand by game', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: 20),
+        if (rows.isEmpty) const Text('No completed sales in this period.'),
+        for (final row in rows)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                for (final row in data['byGame'])
-                  ListTile(
-                    title: Text('${row['game']}'),
-                    trailing: Text('${row['unitsSold']} units'),
-                  ),
+                Text(
+                  '${gameLabels[row['game']] ?? row['game']} · ${row['unitsSold']} units',
+                ),
+                const SizedBox(height: 8),
+                LinearProgressIndicator(
+                  value: (row['unitsSold'] as num) / maximum,
+                  minHeight: 8,
+                  semanticsLabel: '${row['game']}: ${row['unitsSold']} units',
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '${money((row['revenue'] as num? ?? 0).toDouble())} paid revenue',
+                ),
               ],
             ),
-            2 => Column(
-              children: [
-                if ((data['topProducts'] as List).isEmpty)
-                  const Text('No completed sales in this period.'),
-                for (final row in data['topProducts'])
-                  ListTile(
-                    title: Text('${row['name']}'),
-                    subtitle: Text('${row['unitsSold']} sold'),
-                  ),
-              ],
-            ),
-            3 => Column(
-              children: [
-                for (final entry in (data['statuses'] as Map).entries)
-                  if (entry.key != 'confirmed')
-                    ListTile(
-                      title: Text(adminStatusLabel(entry.key)),
-                      trailing: Text(
-                        '${(entry.value as num) + (entry.key == 'processing' ? (data['statuses']['confirmed'] as num? ?? 0) : 0)}',
-                      ),
-                    ),
-              ],
-            ),
-            _ => FutureBuilder<Map<String, dynamic>>(
-              future: _forecast,
-              builder: (context, snapshot) {
-                if (snapshot.hasError) return Text('${snapshot.error}');
-                if (snapshot.connectionState != ConnectionState.done ||
-                    !snapshot.hasData) {
-                  return const Center(child: CircularProgressIndicator());
-                }
-                final forecast = snapshot.data!['data'] as Map;
+          ),
+      ],
+    );
+  }
+
+  Widget _fulfillment(Map<String, dynamic> data) {
+    final statuses = data['statuses'] as Map;
+    final total = math.max(1, (data['orders'] as num).toDouble());
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('Fulfillment', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: 20),
+        for (final status in [
+          'pending',
+          'processing',
+          'shipped',
+          'completed',
+          'cancelled',
+          'delayed',
+        ])
+          Padding(
+            padding: const EdgeInsets.only(bottom: 16),
+            child: Builder(
+              builder: (context) {
+                final count =
+                    (statuses[status] as num? ?? 0) +
+                    (status == 'processing'
+                        ? statuses['confirmed'] as num? ?? 0
+                        : 0);
                 return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Text(
-                      'Seven-day forecast',
-                      style: Theme.of(context).textTheme.titleLarge,
+                    Text('${adminStatusLabel(status)}: $count'),
+                    const SizedBox(height: 6),
+                    LinearProgressIndicator(
+                      value: (count / total).clamp(0, 1),
+                      semanticsLabel: '${adminStatusLabel(status)}: $count',
                     ),
-                    const SizedBox(height: 20),
-                    for (final row in forecast['forecast'])
-                      ListTile(
-                        title: Text('${row['date']}'),
-                        trailing: Text(money((row['value'] as num).toDouble())),
-                      ),
-                    for (final key in [
-                      'fastMoving',
-                      'slowMoving',
-                      'lowStockRisks',
-                    ]) ...[
-                      const Divider(),
-                      Text(
-                        {
-                          'fastMoving': 'Fast-moving singles',
-                          'slowMoving': 'Slow-moving singles',
-                          'lowStockRisks': 'Low-stock risks',
-                        }[key]!,
-                      ),
-                      for (final row in forecast['insights']?[key] ?? [])
-                        ListTile(
-                          title: Text('${row['name']}'),
-                          subtitle: Text('${row['stock']} in stock'),
-                        ),
-                    ],
                   ],
                 );
               },
             ),
-          },
-        ),
+          ),
+      ],
+    );
+  }
+
+  Widget _accounting(Map<String, dynamic> data) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      Text(
+        'Payment & inventory',
+        style: Theme.of(context).textTheme.titleLarge,
+      ),
+      const SizedBox(height: 20),
+      for (final row in [
+        ['Actual paid revenue', money((data['revenue'] as num).toDouble())],
+        [
+          'Simulated gross value',
+          money((data['simulatedGrossValue'] as num? ?? 0).toDouble()),
+        ],
+        [
+          'Simulated net value',
+          money((data['simulatedNetValue'] as num? ?? 0).toDouble()),
+        ],
+        [
+          'Recorded refunds',
+          money((data['refundEvents']?['amount'] as num? ?? 0).toDouble()),
+        ],
+        ['Low stock', '${data['inventory']['lowStock']}'],
+        ['Out of stock', '${data['inventory']['outOfStock']}'],
+      ]) ...[
+        Text(row[0], style: const TextStyle(color: TcgColors.muted)),
+        Text(row[1], style: const TextStyle(fontWeight: FontWeight.bold)),
+        const Divider(height: 24),
+      ],
+      const Text(
+        'Refunds use refund dates. Order values use original order dates.',
       ),
     ],
   );
+
+  Widget _forecastPanel() => FutureBuilder<Map<String, dynamic>>(
+    future: _forecast,
+    builder: (context, snapshot) {
+      if (snapshot.hasError) return Text('${snapshot.error}');
+      if (snapshot.connectionState != ConnectionState.done ||
+          !snapshot.hasData) {
+        return const Center(child: CircularProgressIndicator());
+      }
+      final forecast = snapshot.data!['data'] as Map;
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Seven-day forecast',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 20),
+          AdminSalesChart(
+            title: 'Projected order value',
+            rows: [
+              for (final row in forecast['forecast'])
+                {'date': row['date'], 'orderValue': row['value']},
+            ],
+          ),
+          for (final key in ['fastMoving', 'slowMoving', 'lowStockRisks']) ...[
+            const Divider(),
+            Text(
+              {
+                'fastMoving': 'Fast-moving singles',
+                'slowMoving': 'Slow-moving singles',
+                'lowStockRisks': 'Low-stock risks',
+              }[key]!,
+            ),
+            for (final row in forecast['insights']?[key] ?? [])
+              ListTile(
+                title: Text('${row['name']}'),
+                subtitle: Text('${row['stock']} in stock'),
+              ),
+          ],
+        ],
+      );
+    },
+  );
+}
+
+class ResponsiveAdminPanels extends StatelessWidget {
+  const ResponsiveAdminPanels({
+    super.key,
+    required this.children,
+    this.minWidth = 300,
+  });
+  final List<Widget> children;
+  final double minWidth;
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final scale = MediaQuery.textScalerOf(context).scale(16) / 16;
+      final columns = ((constraints.maxWidth + 16) / (minWidth * scale + 16))
+          .floor()
+          .clamp(1, 3);
+      if (columns == 1) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var index = 0; index < children.length; index++) ...[
+              if (index > 0) const SizedBox(height: 16),
+              children[index],
+            ],
+          ],
+        );
+      }
+      return Column(
+        children: [
+          for (var start = 0; start < children.length; start += columns) ...[
+            if (start > 0) const SizedBox(height: 16),
+            IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (
+                    var index = start;
+                    index < math.min(start + columns, children.length);
+                    index++
+                  ) ...[
+                    if (index > start) const SizedBox(width: 16),
+                    Expanded(child: children[index]),
+                  ],
+                ],
+              ),
+            ),
+          ],
+        ],
+      );
+    },
+  );
+}
+
+class AdminBestSellers extends StatefulWidget {
+  const AdminBestSellers({super.key, required this.rows});
+  final List<Map<String, dynamic>> rows;
+  @override
+  State<AdminBestSellers> createState() => _AdminBestSellersState();
+}
+
+class _AdminBestSellersState extends State<AdminBestSellers> {
+  int _page = 0;
+  @override
+  Widget build(BuildContext context) {
+    final pages = math.max(1, (widget.rows.length / 4).ceil());
+    final page = math.min(_page, pages - 1);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Text('Most collected', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: 12),
+        if (widget.rows.isEmpty)
+          const Text('No completed sales in this period.'),
+        for (
+          var index = page * 4;
+          index < math.min(page * 4 + 4, widget.rows.length);
+          index++
+        ) ...[
+          Text(
+            '${index + 1}. ${widget.rows[index]['name']}',
+            style: const TextStyle(fontWeight: FontWeight.bold),
+          ),
+          Text(
+            '${widget.rows[index]['unitsSold']} units · ${money((widget.rows[index]['revenue'] as num? ?? 0).toDouble())} paid revenue',
+          ),
+          const Divider(height: 24),
+        ],
+        if (pages > 1)
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              IconButton(
+                tooltip: 'Previous best sellers',
+                onPressed: page > 0
+                    ? () => setState(() => _page = page - 1)
+                    : null,
+                icon: const Icon(Icons.chevron_left),
+              ),
+              Text('Page ${page + 1} of $pages'),
+              IconButton(
+                tooltip: 'Next best sellers',
+                onPressed: page < pages - 1
+                    ? () => setState(() => _page = page + 1)
+                    : null,
+                icon: const Icon(Icons.chevron_right),
+              ),
+            ],
+          ),
+      ],
+    );
+  }
 }
 
 class AdminSalesChart extends StatelessWidget {
-  const AdminSalesChart({super.key, required this.rows});
+  const AdminSalesChart({
+    super.key,
+    required this.rows,
+    this.title = 'Order value over time',
+  });
   final List<Map<String, dynamic>> rows;
+  final String title;
   @override
   Widget build(BuildContext context) {
     final maximum = rows.fold<double>(
       1,
-      (value, row) => math.max(value, (row['orderValue'] as num).toDouble()),
+      (value, row) => math.max(
+        value,
+        math.max(
+          (row['orderValue'] as num).toDouble(),
+          (row['revenue'] as num? ?? 0).toDouble(),
+        ),
+      ),
     );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Sales over time', style: Theme.of(context).textTheme.titleLarge),
+        Text(title, style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 24),
-        SizedBox(
-          height: 240,
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                for (final row in rows)
-                  SizedBox(
-                    width: 56,
-                    child: Semantics(
-                      label:
+        if (rows.isEmpty)
+          const Text('No values in this period.')
+        else
+          Semantics(
+            label:
+                '$title in PHP over ${rows.length} days. Exact values are below.',
+            image: true,
+            child: SizedBox(
+              height: 240,
+              width: double.infinity,
+              child: CustomPaint(
+                painter: _OrderValuePainter(
+                  rows,
+                  maximum,
+                  MediaQuery.textScalerOf(context).scale(11),
+                ),
+              ),
+            ),
+          ),
+        const SizedBox(height: 20),
+        Text(
+          'Net delivered order value · PHP',
+          style: const TextStyle(color: TcgColors.muted),
+        ),
+        if (rows.any((row) => row.containsKey('revenue')))
+          const Text(
+            'Mint line: actual paid revenue',
+            style: TextStyle(color: Color(0xff8ed8c2)),
+          ),
+        TextButton(
+          child: const Text('Exact daily values'),
+          onPressed: () => showDialog<void>(
+            context: context,
+            builder: (context) => AlertDialog(
+              title: const Text('Exact daily values'),
+              scrollable: true,
+              content: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (final row in rows)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
                           '${row['date']}: ${money((row['orderValue'] as num).toDouble())}',
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.end,
-                        children: [
-                          Text(
-                            money((row['orderValue'] as num).toDouble()),
-                            style: const TextStyle(fontSize: 11),
-                          ),
-                          const SizedBox(height: 8),
-                          Container(
-                            width: 28,
-                            height: math.max(
-                              2,
-                              175 *
-                                  (row['orderValue'] as num).toDouble() /
-                                  maximum,
-                            ),
-                            color: TcgColors.yellow,
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            '${row['date']}'.substring(5),
-                            style: const TextStyle(fontSize: 11),
-                          ),
-                        ],
+                        ),
                       ),
                     ),
-                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Close'),
+                ),
               ],
             ),
           ),
         ),
-        const SizedBox(height: 20),
-        Text(
-          'Completed order value',
-          style: const TextStyle(color: TcgColors.muted),
-        ),
       ],
     );
   }
+}
+
+class _OrderValuePainter extends CustomPainter {
+  _OrderValuePainter(this.rows, this.maximum, this.fontSize);
+  final List<Map<String, dynamic>> rows;
+  final double maximum, fontSize;
+  @override
+  void paint(Canvas canvas, Size size) {
+    final left = math.min(100.0, size.width * .35), bottom = size.height - 34;
+    final plotWidth = size.width - left - 8;
+    void label(String text, Offset offset, double width) {
+      final painter = TextPainter(
+        text: TextSpan(
+          text: text,
+          style: TextStyle(color: TcgColors.muted, fontSize: fontSize),
+        ),
+        textDirection: TextDirection.ltr,
+        maxLines: 1,
+        ellipsis: '…',
+      )..layout(maxWidth: math.max(1, width));
+      painter.paint(canvas, offset);
+    }
+
+    for (var tick = 0; tick <= 4; tick++) {
+      final y = bottom - (bottom - 16) * tick / 4;
+      canvas.drawLine(
+        Offset(left, y),
+        Offset(size.width, y),
+        Paint()..color = TcgColors.border.withValues(alpha: .3),
+      );
+      final value = maximum * tick / 4;
+      label(
+        value >= 1000
+            ? '${(value / 1000).toStringAsFixed(1)}k'
+            : value.toStringAsFixed(0),
+        Offset(0, y - fontSize / 2),
+        left - 8,
+      );
+    }
+    final step = plotWidth / math.max(1, rows.length);
+    for (var index = 0; index < rows.length; index++) {
+      final height = math.max(
+        2.0,
+        (bottom - 16) * (rows[index]['orderValue'] as num) / maximum,
+      );
+      canvas.drawRect(
+        Rect.fromLTWH(
+          left + step * index + step * .15,
+          bottom - height,
+          step * .7,
+          height,
+        ),
+        Paint()..color = TcgColors.yellow,
+      );
+    }
+    if (rows.any((row) => row.containsKey('revenue'))) {
+      final path = Path();
+      for (var index = 0; index < rows.length; index++) {
+        final x = left + step * (index + .5);
+        final y =
+            bottom -
+            (bottom - 16) * (rows[index]['revenue'] as num? ?? 0) / maximum;
+        if (index == 0) {
+          path.moveTo(x, y);
+        } else {
+          path.lineTo(x, y);
+        }
+        canvas.drawCircle(
+          Offset(x, y),
+          2,
+          Paint()..color = const Color(0xff8ed8c2),
+        );
+      }
+      canvas.drawPath(
+        path,
+        Paint()
+          ..color = const Color(0xff8ed8c2)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2,
+      );
+    }
+    label(
+      '${rows.first['date']}'.substring(5),
+      Offset(left, bottom + 10),
+      plotWidth / 2,
+    );
+    if (rows.length > 1) {
+      label(
+        '${rows.last['date']}'.substring(5),
+        Offset(left + plotWidth / 2, bottom + 10),
+        plotWidth / 2,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _OrderValuePainter oldDelegate) =>
+      rows != oldDelegate.rows ||
+      maximum != oldDelegate.maximum ||
+      fontSize != oldDelegate.fontSize;
 }

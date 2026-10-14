@@ -4,6 +4,7 @@ import '../state/auth_state.dart';
 import '../theme/app_theme.dart';
 import '../widgets/store_widgets.dart';
 import 'admin_workspace.dart';
+import '../models/product.dart';
 
 class AdminProductEditor extends StatefulWidget {
   const AdminProductEditor({
@@ -81,6 +82,77 @@ class _AdminProductEditorState extends State<AdminProductEditor> {
       return;
     }
     final revision = widget.auth.revision;
+    if (!widget.inventory) {
+      final preview = Product(
+        id: widget.initial?['id'] ?? 'preview',
+        name: _fields['name']!.text.trim(),
+        slug: _fields['slug']!.text.trim(),
+        game: _game,
+        setName: _fields['setName']!.text.trim(),
+        rarity: _fields['rarity']!.text.trim(),
+        condition: _condition,
+        stock: adminNumber(_fields['stock']!.text, whole: true)!.toInt(),
+        price: adminNumber(_fields['price']!.text)!.toDouble(),
+        imageUrl: _fields['imageUrl']!.text.trim(),
+        isActive: _active,
+      );
+      setState(() => _busy = true);
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Review product'),
+          scrollable: true,
+          content: SizedBox(
+            width: 320,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  height: 220,
+                  width: double.infinity,
+                  child: CardArtwork(product: preview),
+                ),
+                Text(
+                  preview.name,
+                  style: Theme.of(context).textTheme.titleLarge,
+                ),
+                Text(preview.setName),
+                Text('${preview.gameName} · ${preview.condition}'),
+                const SizedBox(height: 12),
+                Text(
+                  money(preview.price),
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
+                Text('${preview.stock} in stock'),
+                Text(
+                  _active
+                      ? 'Active in store'
+                      : 'Archived · hidden from the store',
+                ),
+                if (_featured) const Text('Featured'),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('Back to edit'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Confirm save'),
+            ),
+          ],
+        ),
+      );
+      if (!mounted) return;
+      setState(() => _busy = false);
+      if (confirmed != true ||
+          revision != widget.auth.revision ||
+          widget.auth.user?.role != 'admin') {
+        return;
+      }
+    }
     setState(() {
       _busy = true;
       _error = null;
