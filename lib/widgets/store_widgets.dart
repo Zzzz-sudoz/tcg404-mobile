@@ -169,13 +169,15 @@ class SectionTitle extends StatelessWidget {
   final String? action;
   final VoidCallback? onAction;
   @override
-  Widget build(BuildContext context) => Wrap(
-    alignment: WrapAlignment.spaceBetween,
-    crossAxisAlignment: WrapCrossAlignment.center,
-    spacing: 16,
+  Widget build(BuildContext context) => Row(
     children: [
-      Text(title, style: Theme.of(context).textTheme.headlineMedium),
-      if (action != null) TextButton(onPressed: onAction, child: Text(action!)),
+      Expanded(
+        child: Text(title, style: Theme.of(context).textTheme.headlineMedium),
+      ),
+      if (action != null) ...[
+        const SizedBox(width: 16),
+        TextButton(onPressed: onAction, child: Text(action!)),
+      ],
     ],
   );
 }
