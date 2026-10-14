@@ -244,40 +244,56 @@ class _ShopScreenState extends State<ShopScreen> {
                         'Find your next card.',
                         style: Theme.of(context).textTheme.headlineLarge,
                       ),
-                      const SizedBox(height: 20),
-                      TextField(
-                        key: _searchKey,
-                        focusNode: _searchFocus,
-                        controller: _search,
-                        textInputAction: TextInputAction.search,
-                        maxLength: 200,
-                        onChanged: (_) {
-                          setState(() {});
-                          _debounce?.cancel();
-                          _debounce = Timer(
-                            const Duration(milliseconds: 350),
-                            _submitSearch,
-                          );
-                        },
-                        onSubmitted: (_) => _submitSearch(),
-                        decoration: InputDecoration(
-                          labelText: 'Search cards',
-                          hintText: 'Name, set or card number',
-                          counterText: '',
-                          prefixIcon: const Icon(Icons.search),
-                          suffixIcon: _search.text.isEmpty
-                              ? null
-                              : IconButton(
-                                  tooltip: 'Clear search',
-                                  onPressed: () {
-                                    setState(() => _search.clear());
-                                    _submitSearch();
-                                  },
-                                  icon: const Icon(Icons.close),
-                                ),
-                        ),
+                    ],
+                  ),
+                ),
+              ),
+              PinnedHeaderSliver(
+                child: ColoredBox(
+                  color: TcgColors.bg,
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(inset, 8, inset, 12),
+                    child: TextField(
+                      key: _searchKey,
+                      focusNode: _searchFocus,
+                      controller: _search,
+                      textInputAction: TextInputAction.search,
+                      maxLength: 200,
+                      onChanged: (_) {
+                        setState(() {});
+                        _debounce?.cancel();
+                        _debounce = Timer(
+                          const Duration(milliseconds: 350),
+                          _submitSearch,
+                        );
+                      },
+                      onSubmitted: (_) => _submitSearch(),
+                      decoration: InputDecoration(
+                        labelText: 'Search cards',
+                        hintText: 'Name, set or card number',
+                        counterText: '',
+                        prefixIcon: const Icon(Icons.search),
+                        suffixIcon: _search.text.isEmpty
+                            ? null
+                            : IconButton(
+                                tooltip: 'Clear search',
+                                onPressed: () {
+                                  setState(() => _search.clear());
+                                  _submitSearch();
+                                },
+                                icon: const Icon(Icons.close),
+                              ),
                       ),
-                      const SizedBox(height: 12),
+                    ),
+                  ),
+                ),
+              ),
+              SliverPadding(
+                padding: EdgeInsets.fromLTRB(inset, 0, inset, 16),
+                sliver: SliverToBoxAdapter(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Wrap(
                         spacing: 16,
                         runSpacing: 8,
