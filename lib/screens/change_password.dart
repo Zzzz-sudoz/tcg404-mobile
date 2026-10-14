@@ -106,7 +106,10 @@ class _ChangePasswordState extends State<ChangePassword> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               if (_error != null)
-                Text(_error!, style: const TextStyle(color: TcgColors.red)),
+                Text(
+                  _error!,
+                  style: TextStyle(color: TcgColors.of(context).red),
+                ),
               for (final entry in {
                 'oldPassword': 'Current password',
                 'newPassword': 'New password',

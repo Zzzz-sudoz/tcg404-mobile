@@ -284,8 +284,8 @@ class _FilterSheetState extends State<FilterSheet> {
               ),
               Container(
                 padding: const EdgeInsets.fromLTRB(24, 12, 24, 16),
-                decoration: const BoxDecoration(
-                  border: Border(top: BorderSide(color: TcgColors.border)),
+                decoration: BoxDecoration(
+                  border: Border(top: BorderSide(color: TcgColors.of(context).border)),
                 ),
                 child: Wrap(
                   spacing: 12,

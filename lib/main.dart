@@ -16,6 +16,8 @@ import 'models/product.dart';
 import 'services/catalog_api.dart';
 import 'state/cart_state.dart';
 import 'theme/app_theme.dart';
+import 'theme/theme_state.dart';
+import 'widgets/theme_mode_switch.dart';
 import 'widgets/store_widgets.dart';
 import 'widgets/favorites_scope.dart';
 import 'screens/favorites_screen.dart';
@@ -34,7 +36,7 @@ Future<void> main() async {
   await Future.wait([cart.restore(), auth.restore()]);
 }
 
-class Tcg404App extends StatelessWidget {
+class Tcg404App extends StatefulWidget {
   const Tcg404App({
     super.key,
     required this.api,
@@ -47,13 +49,47 @@ class Tcg404App extends StatelessWidget {
   final CommerceApi commerce;
   final AuthState auth;
   @override
-  Widget build(BuildContext context) => MaterialApp(
-    title: 'TCG404',
-    debugShowCheckedModeBanner: false,
-    theme: storeTheme(),
-    builder: (context, child) =>
-        FavoritesScope(api: commerce, auth: auth, child: child!),
-    home: StoreShell(api: api, cart: cart, commerce: commerce, auth: auth),
+  State<Tcg404App> createState() => _Tcg404AppState();
+}
+
+class _Tcg404AppState extends State<Tcg404App> {
+  final _theme = ThemeState();
+  @override
+  void initState() {
+    super.initState();
+    _theme.restore();
+  }
+
+  @override
+  void dispose() {
+    _theme.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => ThemeScope(
+    notifier: _theme,
+    child: ListenableBuilder(
+      listenable: _theme,
+      builder: (context, child) => MaterialApp(
+        title: 'TCG404',
+        debugShowCheckedModeBanner: false,
+        theme: storeTheme(Brightness.light),
+        darkTheme: storeTheme(),
+        themeMode: _theme.mode,
+        builder: (context, child) => FavoritesScope(
+          api: widget.commerce,
+          auth: widget.auth,
+          child: child!,
+        ),
+        home: StoreShell(
+          api: widget.api,
+          cart: widget.cart,
+          commerce: widget.commerce,
+          auth: widget.auth,
+        ),
+      ),
+    ),
   );
 }
 
@@ -201,16 +237,16 @@ class _StoreShellState extends State<StoreShell> {
       }
       final tab = admin && _tab > 1 ? 0 : _tab;
       return Scaffold(
-        appBar: admin
-            ? AppBar(
-                actions: [
-                  TextButton(
-                    onPressed: () => setState(() => _previewStore = false),
-                    child: const Text('Admin workspace'),
-                  ),
-                ],
-              )
-            : null,
+        appBar: AppBar(
+          actions: [
+            const ThemeModeSwitch(),
+            if (admin)
+              TextButton(
+                onPressed: () => setState(() => _previewStore = false),
+                child: const Text('Admin workspace'),
+              ),
+          ],
+        ),
         body: StoreBackdrop(
           child: SafeArea(
             child: Center(

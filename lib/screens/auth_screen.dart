@@ -199,8 +199,8 @@ class _AuthScreenState extends State<AuthScreen> {
                                         : Icons.circle_outlined,
                                     size: 18,
                                     color: rule.value
-                                        ? TcgColors.yellow
-                                        : TcgColors.muted,
+                                        ? TcgColors.of(context).yellow
+                                        : TcgColors.of(context).muted,
                                   ),
                                   const SizedBox(width: 8),
                                   Expanded(
@@ -208,8 +208,8 @@ class _AuthScreenState extends State<AuthScreen> {
                                       rule.key,
                                       style: TextStyle(
                                         color: rule.value
-                                            ? TcgColors.yellow
-                                            : TcgColors.muted,
+                                            ? TcgColors.of(context).yellow
+                                            : TcgColors.of(context).muted,
                                       ),
                                     ),
                                   ),
@@ -243,7 +243,9 @@ class _AuthScreenState extends State<AuthScreen> {
                             liveRegion: true,
                             child: Text(
                               _error!,
-                              style: const TextStyle(color: TcgColors.red),
+                              style: TextStyle(
+                                color: TcgColors.of(context).red,
+                              ),
                             ),
                           ),
                         ],

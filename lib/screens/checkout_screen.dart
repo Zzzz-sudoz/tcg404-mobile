@@ -268,17 +268,19 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                   ).textTheme.headlineLarge,
                                 ),
                                 const SizedBox(height: 8),
-                                const Text(
+                                Text(
                                   'A few delivery details. A new place in your collection.',
-                                  style: TextStyle(color: TcgColors.muted),
+                                  style: TextStyle(
+                                    color: TcgColors.of(context).muted,
+                                  ),
                                 ),
                                 const SizedBox(height: 24),
                                 if (_preferencesError != null &&
                                     !_checkout.hasPending) ...[
                                   Text(
                                     _preferencesError!,
-                                    style: const TextStyle(
-                                      color: TcgColors.muted,
+                                    style: TextStyle(
+                                      color: TcgColors.of(context).muted,
                                     ),
                                   ),
                                   TextButton(
@@ -293,8 +295,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                       liveRegion: true,
                                       child: Text(
                                         _checkout.error!,
-                                        style: const TextStyle(
-                                          color: TcgColors.red,
+                                        style: TextStyle(
+                                          color: TcgColors.of(context).red,
                                         ),
                                       ),
                                     ),
@@ -318,18 +320,18 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                       crossAxisAlignment:
                                           CrossAxisAlignment.start,
                                       children: [
-                                        const Text(
+                                        Text(
                                           'YOUR SAVED SUBMISSION',
                                           style: TextStyle(
-                                            color: TcgColors.yellow,
+                                            color: TcgColors.of(context).yellow,
                                             fontWeight: FontWeight.w700,
                                           ),
                                         ),
                                         const SizedBox(height: 8),
-                                        const Text(
+                                        Text(
                                           'The delivery details and cards below belong to your original submission. Retry to retrieve its confirmation.',
                                           style: TextStyle(
-                                            color: TcgColors.muted,
+                                            color: TcgColors.of(context).muted,
                                           ),
                                         ),
                                         TextButton(
@@ -398,11 +400,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                     AutofillHints.postalCode,
                                   ],
                                 ),
-                                const Padding(
+                                Padding(
                                   padding: EdgeInsets.only(bottom: 20),
                                   child: Text(
                                     'Country · Philippines',
-                                    style: TextStyle(color: TcgColors.muted),
+                                    style: TextStyle(
+                                      color: TcgColors.of(context).muted,
+                                    ),
                                   ),
                                 ),
                                 _field(
@@ -481,8 +485,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                       liveRegion: true,
                                       child: Text(
                                         _paymentError!,
-                                        style: const TextStyle(
-                                          color: TcgColors.red,
+                                        style: TextStyle(
+                                          color: TcgColors.of(context).red,
                                         ),
                                       ),
                                     ),
@@ -498,11 +502,13 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                 Container(
                                   padding: const EdgeInsets.all(20),
                                   decoration: BoxDecoration(
-                                    color: TcgColors.surface.withValues(
-                                      alpha: .9,
-                                    ),
+                                    color: TcgColors.of(
+                                      context,
+                                    ).surface.withValues(alpha: .9),
                                     borderRadius: BorderRadius.circular(20),
-                                    border: Border.all(color: TcgColors.border),
+                                    border: Border.all(
+                                      color: TcgColors.of(context).border,
+                                    ),
                                   ),
                                   child: Column(
                                     crossAxisAlignment:
@@ -532,8 +538,10 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                                           as int) /
                                                       100,
                                                 ),
-                                                style: const TextStyle(
-                                                  color: TcgColors.yellow,
+                                                style: TextStyle(
+                                                  color: TcgColors.of(
+                                                    context,
+                                                  ).yellow,
                                                 ),
                                               ),
                                             ],
@@ -552,18 +560,20 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                               _checkout.summarySubtotalCents /
                                                   100,
                                             ),
-                                            style: const TextStyle(
-                                              color: TcgColors.yellow,
+                                            style: TextStyle(
+                                              color: TcgColors.of(
+                                                context,
+                                              ).yellow,
                                               fontWeight: FontWeight.w700,
                                             ),
                                           ),
                                         ],
                                       ),
                                       const SizedBox(height: 12),
-                                      const Text(
+                                      Text(
                                         'The store confirms the final delivery charges and total with your receipt.',
                                         style: TextStyle(
-                                          color: TcgColors.muted,
+                                          color: TcgColors.of(context).muted,
                                         ),
                                       ),
                                     ],
@@ -574,8 +584,8 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
                                     padding: const EdgeInsets.only(top: 16),
                                     child: Text(
                                       widget.cart.notice!,
-                                      style: const TextStyle(
-                                        color: TcgColors.yellow,
+                                      style: TextStyle(
+                                        color: TcgColors.of(context).yellow,
                                       ),
                                     ),
                                   ),

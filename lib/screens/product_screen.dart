@@ -132,13 +132,17 @@ class _ProductScreenState extends State<ProductScreen> {
                               height: 350,
                               decoration: BoxDecoration(
                                 borderRadius: BorderRadius.circular(24),
-                                border: Border.all(color: TcgColors.border),
+                                border: Border.all(
+                                  color: TcgColors.of(context).border,
+                                ),
                                 gradient: LinearGradient(
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
                                   colors: [
-                                    TcgColors.lavender.withValues(alpha: .17),
-                                    TcgColors.surface,
+                                    TcgColors.of(
+                                      context,
+                                    ).lavender.withValues(alpha: .17),
+                                    TcgColors.of(context).surface,
                                   ],
                                 ),
                               ),
@@ -147,8 +151,8 @@ class _ProductScreenState extends State<ProductScreen> {
                             const SizedBox(height: 24),
                             Text(
                               product.gameName.toUpperCase(),
-                              style: const TextStyle(
-                                color: TcgColors.lavender,
+                              style: TextStyle(
+                                color: TcgColors.of(context).lavender,
                                 letterSpacing: 2,
                               ),
                             ),
@@ -165,13 +169,17 @@ class _ProductScreenState extends State<ProductScreen> {
                             Text(
                               money(product.price),
                               style: Theme.of(context).textTheme.headlineMedium
-                                  ?.copyWith(color: TcgColors.yellow),
+                                  ?.copyWith(
+                                    color: TcgColors.of(context).yellow,
+                                  ),
                             ),
                             Text(
                               product.stock > 0
                                   ? '${product.stock} available'
                                   : 'Out of stock',
-                              style: const TextStyle(color: TcgColors.muted),
+                              style: TextStyle(
+                                color: TcgColors.of(context).muted,
+                              ),
                             ),
                             const SizedBox(height: 24),
                             for (final row in [
@@ -193,8 +201,8 @@ class _ProductScreenState extends State<ProductScreen> {
                                     children: [
                                       Text(
                                         '${row.$1}:',
-                                        style: const TextStyle(
-                                          color: TcgColors.muted,
+                                        style: TextStyle(
+                                          color: TcgColors.of(context).muted,
                                         ),
                                       ),
                                       Text(row.$2),
@@ -217,8 +225,8 @@ class _ProductScreenState extends State<ProductScreen> {
                                 padding: const EdgeInsets.only(top: 12),
                                 child: Text(
                                   'Market reference: ${reference['currency'] ?? ''} ${reference['price'] ?? '—'} · ${reference['source'] ?? product.source ?? ''}',
-                                  style: const TextStyle(
-                                    color: TcgColors.muted,
+                                  style: TextStyle(
+                                    color: TcgColors.of(context).muted,
                                   ),
                                 ),
                               ),
@@ -228,10 +236,12 @@ class _ProductScreenState extends State<ProductScreen> {
                       if (widget.auth?.user?.role != 'admin')
                         Container(
                           padding: const EdgeInsets.all(16),
-                          decoration: const BoxDecoration(
-                            color: TcgColors.surface,
+                          decoration: BoxDecoration(
+                            color: TcgColors.of(context).surface,
                             border: Border(
-                              top: BorderSide(color: TcgColors.border),
+                              top: BorderSide(
+                                color: TcgColors.of(context).border,
+                              ),
                             ),
                           ),
                           child: Wrap(
@@ -244,9 +254,11 @@ class _ProductScreenState extends State<ProductScreen> {
                                 mainAxisSize: MainAxisSize.min,
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text(
+                                  Text(
                                     'Quantity',
-                                    style: TextStyle(color: TcgColors.muted),
+                                    style: TextStyle(
+                                      color: TcgColors.of(context).muted,
+                                    ),
                                   ),
                                   QuantityControl(
                                     value: quantity,

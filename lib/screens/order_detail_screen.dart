@@ -165,7 +165,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
           child: Text(
             label,
             style: TextStyle(
-              color: total ? TcgColors.ink : TcgColors.muted,
+              color: total
+                  ? TcgColors.of(context).ink
+                  : TcgColors.of(context).muted,
               fontWeight: total ? FontWeight.w700 : FontWeight.w400,
             ),
           ),
@@ -176,7 +178,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
             money(value),
             textAlign: TextAlign.end,
             style: TextStyle(
-              color: total ? TcgColors.yellow : TcgColors.ink,
+              color: total
+                  ? TcgColors.of(context).yellow
+                  : TcgColors.of(context).ink,
               fontSize: total ? 24 : 14,
               fontWeight: total ? FontWeight.w700 : FontWeight.w400,
             ),
@@ -187,7 +191,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
   );
 
   Widget _art(OrderItem item) {
-    const fallback = Icon(Icons.style_outlined, color: TcgColors.muted);
+    final fallback = Icon(
+      Icons.style_outlined,
+      color: TcgColors.of(context).muted,
+    );
     final path = item.imageUrl;
     Widget image;
     if (RegExp(r'^/cards/[a-zA-Z0-9_.-]+$').hasMatch(path)) {
@@ -215,9 +222,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       if (widget.success) ...[
-        const Icon(
+        Icon(
           Icons.check_circle_outline,
-          color: TcgColors.yellow,
+          color: TcgColors.of(context).yellow,
           size: 44,
         ),
         const SizedBox(height: 16),
@@ -226,9 +233,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
           style: Theme.of(context).textTheme.headlineLarge,
         ),
         const SizedBox(height: 8),
-        const Text(
+        Text(
           'Your cards are on the list. Keep this receipt for your records.',
-          style: TextStyle(color: TcgColors.muted),
+          style: TextStyle(color: TcgColors.of(context).muted),
         ),
         const SizedBox(height: 28),
       ],
@@ -236,16 +243,16 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
         width: double.infinity,
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: TcgColors.surface.withValues(alpha: .94),
+          color: TcgColors.of(context).surface.withValues(alpha: .94),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: TcgColors.border),
+          border: Border.all(color: TcgColors.of(context).border),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Order number',
-              style: TextStyle(color: TcgColors.muted),
+              style: TextStyle(color: TcgColors.of(context).muted),
             ),
             const SizedBox(height: 8),
             SelectableText(
@@ -255,12 +262,14 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
             const SizedBox(height: 12),
             Text(
               order.createdAt.toLocal().toIso8601String().split('T').first,
-              style: const TextStyle(color: TcgColors.muted),
+              style: TextStyle(color: TcgColors.of(context).muted),
             ),
             const SizedBox(height: 12),
             Text(
               'Order status: ${order.statusLabel}',
-              style: TextStyle(color: orderStatusColor(order.status)),
+              style: TextStyle(
+                color: orderStatusColor(order.status, context: context),
+              ),
             ),
             const SizedBox(height: 16),
             Text(
@@ -277,7 +286,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
                     Icon(
                       Icons.check_circle_outline,
                       size: 20,
-                      color: orderStatusColor(event.status),
+                      color: orderStatusColor(event.status, context: context),
                     ),
                     const SizedBox(width: 12),
                     Expanded(
@@ -289,7 +298,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
                                 ? 'Order placed'
                                 : event.label,
                             style: TextStyle(
-                              color: orderStatusColor(event.status),
+                              color: orderStatusColor(
+                                event.status,
+                                context: context,
+                              ),
                               fontWeight: FontWeight.w700,
                             ),
                           ),
@@ -300,7 +312,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
                                 .replaceFirst('T', ' ')
                                 .split('.')
                                 .first,
-                            style: const TextStyle(color: TcgColors.muted),
+                            style: TextStyle(
+                              color: TcgColors.of(context).muted,
+                            ),
                           ),
                         ],
                       ),
@@ -318,7 +332,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
               const SizedBox(height: 4),
               SelectableText(
                 '${order.payment!['reference']}',
-                style: const TextStyle(color: TcgColors.muted),
+                style: TextStyle(color: TcgColors.of(context).muted),
               ),
             ],
             const Padding(
@@ -349,7 +363,9 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
                           const SizedBox(height: 4),
                           Text(
                             '${item.setName} · ${item.condition}',
-                            style: const TextStyle(color: TcgColors.muted),
+                            style: TextStyle(
+                              color: TcgColors.of(context).muted,
+                            ),
                           ),
                           const SizedBox(height: 8),
                           Text('${item.quantity} × ${money(item.unitPrice)}'),
@@ -469,7 +485,7 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
                         if (_error != null) ...[
                           Text(
                             _error!,
-                            style: const TextStyle(color: TcgColors.red),
+                            style: TextStyle(color: TcgColors.of(context).red),
                           ),
                           OutlinedButton(
                             onPressed: _loading ? null : _load,
@@ -478,7 +494,12 @@ class _OrderDetailScreenState extends State<OrderDetailScreen>
                         ],
                         const SizedBox(height: 12),
                         _receipt(_order!),
-                        OrderAfterSales(order:_order!,api:widget.api,auth:widget.auth,refresh:_load),
+                        OrderAfterSales(
+                          order: _order!,
+                          api: widget.api,
+                          auth: widget.auth,
+                          refresh: _load,
+                        ),
                       ],
                     ),
                   ),

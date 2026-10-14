@@ -248,7 +248,7 @@ class _AccountPreferencesScreenState extends State<AccountPreferencesScreen> {
         const SizedBox(height: 20),
         if (_busy) const LinearProgressIndicator(),
         if (_error != null) ...[
-          Text(_error!, style: const TextStyle(color: TcgColors.red)),
+          Text(_error!, style: TextStyle(color: TcgColors.of(context).red)),
           TextButton(
             onPressed: _busy ? null : _load,
             child: const Text('Try again'),

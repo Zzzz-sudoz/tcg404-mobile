@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../services/commerce_api.dart';
 import '../state/auth_state.dart';
@@ -28,6 +29,16 @@ class _AdminProductEditorState extends State<AdminProductEditor> {
   String _game = 'pokemon', _condition = 'Near mint';
   bool _active = true, _featured = false, _busy = false;
   String? _error;
+  late String _baseline;
+  bool _allowLeave = false;
+  String get _snapshot => jsonEncode([
+    for (final entry in _fields.entries) entry.value.text.trim(),
+    _game,
+    _condition,
+    _active,
+    _featured,
+  ]);
+  bool get _dirty => _snapshot != _baseline;
   @override
   void initState() {
     super.initState();
@@ -65,6 +76,54 @@ class _AdminProductEditorState extends State<AdminProductEditor> {
     _condition = values['condition'] ?? _condition;
     _active = values['isActive'] ?? true;
     _featured = values['isFeatured'] ?? false;
+    _baseline = _snapshot;
+    for (final field in _fields.values) {
+      field.addListener(_changed);
+    }
+  }
+
+  void _changed() {
+    if (mounted) setState(() {});
+  }
+
+  Future<bool> _confirm(String title, String message, String action) async =>
+      await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(title, textAlign: TextAlign.center),
+          content: Text(message),
+          actionsAlignment: MainAxisAlignment.center,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Text("Cancel"),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: Text(action),
+            ),
+          ],
+        ),
+      ) ==
+      true;
+
+  void _close([bool? saved]) {
+    setState(() => _allowLeave = true);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) Navigator.pop(context, saved);
+    });
+  }
+
+  Future<void> _leave() async {
+    if (_busy) return;
+    if (!_dirty ||
+        await _confirm(
+          "Discard unsaved changes?",
+          "Your product changes have not been saved.",
+          "Discard changes",
+        )) {
+      if (mounted) _close();
+    }
   }
 
   @override
@@ -81,7 +140,26 @@ class _AdminProductEditorState extends State<AdminProductEditor> {
         widget.auth.user?.role != 'admin') {
       return;
     }
+    if (!_dirty &&
+        widget.initial != null &&
+        !await _confirm(
+          "No changes detected",
+          "This product has not changed. Save it anyway?",
+          "Proceed",
+        )) {
+      return;
+    }
+    if (!mounted) return;
     final revision = widget.auth.revision;
+    if (widget.inventory &&
+        !await _confirm(
+          "Save stock changes?",
+          "Confirm the stock and threshold shown in this form.",
+          "Confirm save",
+        )) {
+      return;
+    }
+    if (!mounted) return;
     if (!widget.inventory) {
       final preview = Product(
         id: widget.initial?['id'] ?? 'preview',
@@ -100,7 +178,8 @@ class _AdminProductEditorState extends State<AdminProductEditor> {
       final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-          title: const Text('Review product'),
+          title: Text('Review product', textAlign: TextAlign.center),
+          actionsAlignment: MainAxisAlignment.center,
           scrollable: true,
           content: SizedBox(
             width: 320,
@@ -129,18 +208,18 @@ class _AdminProductEditorState extends State<AdminProductEditor> {
                       ? 'Active in store'
                       : 'Archived · hidden from the store',
                 ),
-                if (_featured) const Text('Featured'),
+                if (_featured) Text('Featured'),
               ],
             ),
           ),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: const Text('Back to edit'),
+              child: Text('Back to edit'),
             ),
             FilledButton(
               onPressed: () => Navigator.pop(context, true),
-              child: const Text('Confirm save'),
+              child: Text('Confirm save'),
             ),
           ],
         ),
@@ -203,7 +282,7 @@ class _AdminProductEditorState extends State<AdminProductEditor> {
         revision: widget.inventory ? null : widget.initial?['revision'],
       );
       if (mounted && revision == widget.auth.revision) {
-        Navigator.pop(context, true);
+        _close(true);
       }
     } catch (error) {
       if (mounted) setState(() => _error = '$error');
@@ -258,183 +337,199 @@ class _AdminProductEditorState extends State<AdminProductEditor> {
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: widget.auth,
-    builder: (context, child) => Scaffold(
-      appBar: AppBar(
-        title: Text(
-          widget.inventory
-              ? 'Adjust stock'
-              : widget.initial == null
-              ? 'Add product'
-              : 'Edit product',
+    builder: (context, child) => PopScope<bool>(
+      canPop: _allowLeave || (!_dirty && !_busy),
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop) _leave();
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(
+            widget.inventory
+                ? 'Adjust stock'
+                : widget.initial == null
+                ? 'Add product'
+                : 'Edit product',
+          ),
         ),
-      ),
-      body: widget.auth.user?.role != 'admin'
-          ? const Center(child: Text('Administrator access required.'))
-          : StoreBackdrop(
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 720),
-                  child: Form(
-                    key: _form,
-                    autovalidateMode: AutovalidateMode.onUserInteraction,
-                    child: ListView(
-                      padding: const EdgeInsets.all(24),
-                      children: [
-                        if (_error != null) ...[
-                          Text(
-                            _error!,
-                            style: const TextStyle(color: TcgColors.red),
-                          ),
-                          const SizedBox(height: 20),
-                        ],
-                        if (widget.inventory) ...[
-                          Text(
-                            '${widget.initial!['name']}',
-                            style: Theme.of(context).textTheme.headlineMedium,
-                          ),
-                          const SizedBox(height: 24),
-                        ],
-                        if (!widget.inventory) ...[
-                          _field('name', 'Name', required: true),
-                          _field('slug', 'Slug'),
-                          _field('sku', 'SKU', required: true, max: 120),
-                          DropdownButtonFormField<String>(
-                            isExpanded: true,
-                            initialValue: _game,
-                            decoration: const InputDecoration(
-                              labelText: 'Game',
-                            ),
-                            items: [
-                              for (final game in [
-                                'pokemon',
-                                'one-piece',
-                                'magic',
-                              ])
-                                DropdownMenuItem(
-                                  value: game,
-                                  child: Text(
-                                    {
-                                      'pokemon': 'Pokemon',
-                                      'one-piece': 'One Piece',
-                                      'magic': 'Magic: The Gathering',
-                                    }[game]!,
-                                  ),
-                                ),
-                            ],
-                            onChanged: _busy
-                                ? null
-                                : (value) => setState(() => _game = value!),
-                          ),
-                          const SizedBox(height: 20),
-                          _field('setName', 'Set', required: true),
-                          _field('cardNumber', 'Card number'),
-                          _field('rarity', 'Rarity', required: true),
-                          _field('cardType', 'Card type'),
-                          DropdownButtonFormField<String>(
-                            isExpanded: true,
-                            initialValue: _condition,
-                            decoration: const InputDecoration(
-                              labelText: 'Condition',
-                            ),
-                            items: [
-                              for (final value in [
-                                'Near mint',
-                                'Lightly played',
-                                'Moderately played',
-                                'Heavily played',
-                                'Damaged',
-                              ])
-                                DropdownMenuItem(
-                                  value: value,
-                                  child: Text(value),
-                                ),
-                            ],
-                            onChanged: _busy
-                                ? null
-                                : (value) =>
-                                      setState(() => _condition = value!),
-                          ),
-                          const SizedBox(height: 20),
-                          _field('language', 'Language'),
-                          _field('finish', 'Finish'),
-                          _field(
-                            'price',
-                            'Price (PHP)',
-                            number: true,
-                            required: true,
-                          ),
-                        ],
-                        _field(
-                          'stock',
-                          'Stock',
-                          number: true,
-                          whole: true,
-                          required: true,
-                        ),
-                        _field(
-                          'lowStockThreshold',
-                          'Low stock threshold',
-                          number: true,
-                          whole: true,
-                          required: true,
-                        ),
-                        if (widget.inventory)
-                          _field('note', 'Adjustment note', max: 500, lines: 3),
-                        if (!widget.inventory) ...[
-                          _field('imageUrl', 'Artwork URL or path', max: 2000),
-                          _field(
-                            'description',
-                            'Description',
-                            max: 5000,
-                            lines: 4,
-                          ),
-                          SwitchListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: const Text('Active in store'),
-                            value: _active,
-                            onChanged: _busy
-                                ? null
-                                : (value) => setState(() => _active = value),
-                          ),
-                          SwitchListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: const Text('Featured'),
-                            value: _featured,
-                            onChanged: _busy
-                                ? null
-                                : (value) => setState(() => _featured = value),
-                          ),
-                        ],
-                        const SizedBox(height: 24),
-                        Wrap(
-                          alignment: WrapAlignment.spaceBetween,
-                          spacing: 16,
-                          runSpacing: 16,
-                          children: [
-                            OutlinedButton(
-                              onPressed: _busy
-                                  ? null
-                                  : () => Navigator.pop(context),
-                              child: const Text('Cancel'),
-                            ),
-                            FilledButton(
-                              onPressed: _busy ? null : _save,
-                              child: Text(
-                                _busy
-                                    ? 'Saving...'
-                                    : widget.inventory
-                                    ? 'Save stock'
-                                    : 'Save product',
+        body: widget.auth.user?.role != 'admin'
+            ? const Center(child: Text('Administrator access required.'))
+            : StoreBackdrop(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 720),
+                    child: Form(
+                      key: _form,
+                      autovalidateMode: AutovalidateMode.onUserInteraction,
+                      child: ListView(
+                        padding: const EdgeInsets.all(24),
+                        children: [
+                          if (_error != null) ...[
+                            Text(
+                              _error!,
+                              style: TextStyle(
+                                color: TcgColors.of(context).red,
                               ),
                             ),
+                            const SizedBox(height: 20),
                           ],
-                        ),
-                      ],
+                          if (widget.inventory) ...[
+                            Text(
+                              '${widget.initial!['name']}',
+                              style: Theme.of(context).textTheme.headlineMedium,
+                            ),
+                            const SizedBox(height: 24),
+                          ],
+                          if (!widget.inventory) ...[
+                            _field('name', 'Name', required: true),
+                            _field('slug', 'Slug'),
+                            _field('sku', 'SKU', required: true, max: 120),
+                            DropdownButtonFormField<String>(
+                              isExpanded: true,
+                              initialValue: _game,
+                              decoration: const InputDecoration(
+                                labelText: 'Game',
+                              ),
+                              items: [
+                                for (final game in [
+                                  'pokemon',
+                                  'one-piece',
+                                  'magic',
+                                ])
+                                  DropdownMenuItem(
+                                    value: game,
+                                    child: Text(
+                                      {
+                                        'pokemon': 'Pokemon',
+                                        'one-piece': 'One Piece',
+                                        'magic': 'Magic: The Gathering',
+                                      }[game]!,
+                                    ),
+                                  ),
+                              ],
+                              onChanged: _busy
+                                  ? null
+                                  : (value) => setState(() => _game = value!),
+                            ),
+                            const SizedBox(height: 20),
+                            _field('setName', 'Set', required: true),
+                            _field('cardNumber', 'Card number'),
+                            _field('rarity', 'Rarity', required: true),
+                            _field('cardType', 'Card type'),
+                            DropdownButtonFormField<String>(
+                              isExpanded: true,
+                              initialValue: _condition,
+                              decoration: const InputDecoration(
+                                labelText: 'Condition',
+                              ),
+                              items: [
+                                for (final value in [
+                                  'Near mint',
+                                  'Lightly played',
+                                  'Moderately played',
+                                  'Heavily played',
+                                  'Damaged',
+                                ])
+                                  DropdownMenuItem(
+                                    value: value,
+                                    child: Text(value),
+                                  ),
+                              ],
+                              onChanged: _busy
+                                  ? null
+                                  : (value) =>
+                                        setState(() => _condition = value!),
+                            ),
+                            const SizedBox(height: 20),
+                            _field('language', 'Language'),
+                            _field('finish', 'Finish'),
+                            _field(
+                              'price',
+                              'Price (PHP)',
+                              number: true,
+                              required: true,
+                            ),
+                          ],
+                          _field(
+                            'stock',
+                            'Stock',
+                            number: true,
+                            whole: true,
+                            required: true,
+                          ),
+                          _field(
+                            'lowStockThreshold',
+                            'Low stock threshold',
+                            number: true,
+                            whole: true,
+                            required: true,
+                          ),
+                          if (widget.inventory)
+                            _field(
+                              'note',
+                              'Adjustment note',
+                              max: 500,
+                              lines: 3,
+                            ),
+                          if (!widget.inventory) ...[
+                            _field(
+                              'imageUrl',
+                              'Artwork URL or path',
+                              max: 2000,
+                            ),
+                            _field(
+                              'description',
+                              'Description',
+                              max: 5000,
+                              lines: 4,
+                            ),
+                            SwitchListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: Text('Active in store'),
+                              value: _active,
+                              onChanged: _busy
+                                  ? null
+                                  : (value) => setState(() => _active = value),
+                            ),
+                            SwitchListTile(
+                              contentPadding: EdgeInsets.zero,
+                              title: Text('Featured'),
+                              value: _featured,
+                              onChanged: _busy
+                                  ? null
+                                  : (value) =>
+                                        setState(() => _featured = value),
+                            ),
+                          ],
+                          const SizedBox(height: 24),
+                          Wrap(
+                            alignment: WrapAlignment.spaceBetween,
+                            spacing: 16,
+                            runSpacing: 16,
+                            children: [
+                              OutlinedButton(
+                                onPressed: _busy ? null : _leave,
+                                child: Text('Cancel'),
+                              ),
+                              FilledButton(
+                                onPressed: _busy ? null : _save,
+                                child: Text(
+                                  _busy
+                                      ? 'Saving...'
+                                      : widget.inventory
+                                      ? 'Save stock'
+                                      : 'Save product',
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
+      ),
     ),
   );
 }
@@ -510,12 +605,12 @@ class _AdminOrderScreenState extends State<AdminOrderScreen> {
     listenable: widget.auth,
     builder: (context, child) => Scaffold(
       appBar: AppBar(
-        title: const Text('Order details'),
+        title: Text('Order details'),
         actions: [
           IconButton(
             tooltip: 'Reload order',
             onPressed: _busy ? null : () => setState(_reload),
-            icon: const Icon(Icons.refresh),
+            icon: Icon(Icons.refresh),
           ),
         ],
       ),
@@ -552,6 +647,26 @@ class _AdminOrderScreenState extends State<AdminOrderScreen> {
                           const SizedBox(height: 12),
                           Text(adminStatusLabel(order['status'])),
                           const SizedBox(height: 24),
+                          _section('Order timeline', [
+                            for (final event
+                                in (order['statusHistory'] as List? ?? []))
+                              ListTile(
+                                contentPadding: EdgeInsets.zero,
+                                leading: Icon(Icons.check_circle_outline),
+                                title: Text(
+                                  adminStatusLabel(event['status'] as String),
+                                ),
+                                subtitle: Text(
+                                  DateTime.tryParse(
+                                        '${event['at']}',
+                                      )?.toLocal().toString() ??
+                                      '${event['at']}',
+                                ),
+                              ),
+                            if ((order['statusHistory'] as List? ?? []).isEmpty)
+                              Text('Created: ${order['createdAt']}'),
+                          ]),
+                          const SizedBox(height: 16),
                           _section('Customer', [
                             Text(
                               '${order['buyer']?['name'] ?? shipping['name']}',
@@ -571,7 +686,7 @@ class _AdminOrderScreenState extends State<AdminOrderScreen> {
                                   children: [
                                     Text(
                                       '${item['name']}',
-                                      style: const TextStyle(
+                                      style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                       ),
                                     ),
@@ -643,7 +758,9 @@ class _AdminOrderScreenState extends State<AdminOrderScreen> {
                               if (_error != null) ...[
                                 Text(
                                   _error!,
-                                  style: const TextStyle(color: TcgColors.red),
+                                  style: TextStyle(
+                                    color: TcgColors.of(context).red,
+                                  ),
                                 ),
                                 const SizedBox(height: 16),
                               ],
@@ -721,7 +838,7 @@ class _AdminMovementsScreenState extends State<AdminMovementsScreen> {
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: widget.auth,
     builder: (context, child) => Scaffold(
-      appBar: AppBar(title: const Text('Stock history')),
+      appBar: AppBar(title: Text('Stock history')),
       body: widget.auth.user?.role != 'admin'
           ? const Center(child: Text('Administrator access required.'))
           : FutureBuilder<Map<String, dynamic>>(
@@ -744,7 +861,7 @@ class _AdminMovementsScreenState extends State<AdminMovementsScreen> {
                 return ListView(
                   padding: const EdgeInsets.all(20),
                   children: [
-                    if (rows.isEmpty) const Text('No stock movements.'),
+                    if (rows.isEmpty) Text('No stock movements.'),
                     for (final row in rows)
                       Card(
                         child: Padding(
@@ -780,7 +897,7 @@ class _AdminMovementsScreenState extends State<AdminMovementsScreen> {
                                   _reload();
                                 })
                               : null,
-                          icon: const Icon(Icons.chevron_left),
+                          icon: Icon(Icons.chevron_left),
                         ),
                         Text('Page $_page of ${meta['totalPages']}'),
                         IconButton(
@@ -791,7 +908,7 @@ class _AdminMovementsScreenState extends State<AdminMovementsScreen> {
                                   _reload();
                                 })
                               : null,
-                          icon: const Icon(Icons.chevron_right),
+                          icon: Icon(Icons.chevron_right),
                         ),
                       ],
                     ),

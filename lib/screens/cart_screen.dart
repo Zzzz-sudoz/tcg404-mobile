@@ -88,9 +88,9 @@ class CartScreen extends StatelessWidget {
                     style: Theme.of(context).textTheme.headlineLarge,
                   ),
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     'Pull to refresh availability and prices.',
-                    style: TextStyle(color: TcgColors.muted),
+                    style: TextStyle(color: TcgColors.of(context).muted),
                   ),
                   if (cart.error != null)
                     StoreMessage(
@@ -104,7 +104,7 @@ class CartScreen extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       child: Text(
                         cart.notice!,
-                        style: const TextStyle(color: TcgColors.yellow),
+                        style: TextStyle(color: TcgColors.of(context).yellow),
                       ),
                     ),
                   const SizedBox(height: 20),
@@ -113,9 +113,9 @@ class CartScreen extends StatelessWidget {
                       margin: const EdgeInsets.only(bottom: 14),
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: TcgColors.surface,
+                        color: TcgColors.of(context).surface,
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: TcgColors.border),
+                        border: Border.all(color: TcgColors.of(context).border),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -144,15 +144,15 @@ class CartScreen extends StatelessWidget {
                                     if (line.product != null)
                                       Text(
                                         line.product!.condition,
-                                        style: const TextStyle(
-                                          color: TcgColors.muted,
+                                        style: TextStyle(
+                                          color: TcgColors.of(context).muted,
                                         ),
                                       ),
                                     const SizedBox(height: 8),
                                     Text(
                                       money(line.totalCents / 100),
-                                      style: const TextStyle(
-                                        color: TcgColors.yellow,
+                                      style: TextStyle(
+                                        color: TcgColors.of(context).yellow,
                                         fontWeight: FontWeight.w700,
                                       ),
                                     ),
@@ -164,25 +164,33 @@ class CartScreen extends StatelessWidget {
                           if (line.reason != null)
                             Text(
                               line.reason!,
-                              style: const TextStyle(color: TcgColors.red),
+                              style: TextStyle(
+                                color: TcgColors.of(context).red,
+                              ),
                             ),
                           if (line.product != null)
                             Padding(
                               padding: const EdgeInsets.symmetric(vertical: 12),
                               child: Text(
                                 'Stock: ${line.product!.stock} available. Limit: ${line.product!.stock.clamp(0, 10)} per card.',
-                                style: const TextStyle(color: TcgColors.muted),
+                                style: TextStyle(
+                                  color: TcgColors.of(context).muted,
+                                ),
                               ),
                             ),
                           if (line.priceChanged)
-                            const Text(
+                            Text(
                               'Price updated to the current listing.',
-                              style: TextStyle(color: TcgColors.yellow),
+                              style: TextStyle(
+                                color: TcgColors.of(context).yellow,
+                              ),
                             ),
                           if (line.stockChanged)
-                            const Text(
+                            Text(
                               'Availability has changed. Check your quantity.',
-                              style: TextStyle(color: TcgColors.yellow),
+                              style: TextStyle(
+                                color: TcgColors.of(context).yellow,
+                              ),
                             ),
                           Wrap(
                             alignment: WrapAlignment.spaceBetween,
@@ -203,10 +211,10 @@ class CartScreen extends StatelessWidget {
                                 tooltip:
                                     'Remove ${line.product?.name ?? 'card'} from cart',
                                 style: IconButton.styleFrom(
-                                  foregroundColor: TcgColors.red,
-                                  backgroundColor: TcgColors.red.withValues(
-                                    alpha: .12,
-                                  ),
+                                  foregroundColor: TcgColors.of(context).red,
+                                  backgroundColor: TcgColors.of(
+                                    context,
+                                  ).red.withValues(alpha: .12),
                                 ),
                                 onPressed: cart.busy
                                     ? null
@@ -225,9 +233,11 @@ class CartScreen extends StatelessWidget {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(20),
-            decoration: const BoxDecoration(
-              color: TcgColors.surface,
-              border: Border(top: BorderSide(color: TcgColors.border)),
+            decoration: BoxDecoration(
+              color: TcgColors.of(context).surface,
+              border: Border(
+                top: BorderSide(color: TcgColors.of(context).border),
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -239,8 +249,8 @@ class CartScreen extends StatelessWidget {
                     const Text('Subtotal'),
                     Text(
                       money(cart.subtotalCents / 100),
-                      style: const TextStyle(
-                        color: TcgColors.yellow,
+                      style: TextStyle(
+                        color: TcgColors.of(context).yellow,
                         fontWeight: FontWeight.w700,
                       ),
                     ),

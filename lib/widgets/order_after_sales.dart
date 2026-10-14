@@ -71,7 +71,7 @@ class _OrderAfterSalesState extends State<OrderAfterSales> {
                       const SizedBox(height: 16),
                       Text(
                         error!,
-                        style: const TextStyle(color: TcgColors.red),
+                        style: TextStyle(color: TcgColors.of(context).red),
                       ),
                     ],
                   ],
@@ -177,7 +177,7 @@ class _OrderAfterSalesState extends State<OrderAfterSales> {
                     const SizedBox(height: 6),
                     Text(
                       event.at.toLocal().toString(),
-                      style: const TextStyle(color: TcgColors.muted),
+                      style: TextStyle(color: TcgColors.of(context).muted),
                     ),
                     if (event.reason.isNotEmpty) ...[
                       const SizedBox(height: 8),

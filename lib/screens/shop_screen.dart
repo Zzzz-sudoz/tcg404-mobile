@@ -161,7 +161,7 @@ class _ShopScreenState extends State<ShopScreen> {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      backgroundColor: TcgColors.surface,
+      backgroundColor: TcgColors.of(context).surface,
       builder: (_) => FilterSheet(api: widget.api, filters: _filters),
     );
     if (!mounted || filters == null) return;
@@ -235,7 +235,7 @@ class _ShopScreenState extends State<ShopScreen> {
                         'THE CARD ROOM',
                         style: Theme.of(context).textTheme.labelMedium
                             ?.copyWith(
-                              color: TcgColors.lavender,
+                              color: TcgColors.of(context).lavender,
                               letterSpacing: 2,
                             ),
                       ),
@@ -250,7 +250,7 @@ class _ShopScreenState extends State<ShopScreen> {
               ),
               PinnedHeaderSliver(
                 child: ColoredBox(
-                  color: TcgColors.bg,
+                  color: TcgColors.of(context).bg,
                   child: Padding(
                     padding: EdgeInsets.fromLTRB(inset, 8, inset, 12),
                     child: TextField(
@@ -316,7 +316,9 @@ class _ShopScreenState extends State<ShopScreen> {
                                   : _error != null
                                   ? '${_items.length} cards shown'
                                   : '$_total ${_total == 1 ? 'card' : 'cards'}',
-                              style: TextStyle(color: TcgColors.muted),
+                              style: TextStyle(
+                                color: TcgColors.of(context).muted,
+                              ),
                             ),
                           ),
                         ],

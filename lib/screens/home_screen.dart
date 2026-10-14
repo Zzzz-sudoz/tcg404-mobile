@@ -50,25 +50,25 @@ class _HomeScreenState extends State<HomeScreen> {
       physics: const AlwaysScrollableScrollPhysics(),
       padding: const EdgeInsets.all(20),
       children: [
-        const Text(
+        Text(
           'TCG404.',
           style: TextStyle(
             fontFamily: 'Barlow',
             fontSize: 34,
             fontWeight: FontWeight.w800,
-            color: TcgColors.yellow,
+            color: TcgColors.of(context).yellow,
           ),
         ),
-        const Text(
+        Text(
           'Collect. Trade. Discover.',
-          style: TextStyle(color: TcgColors.muted),
+          style: TextStyle(color: TcgColors.of(context).muted),
         ),
         const SizedBox(height: 24),
         Container(
           clipBehavior: Clip.antiAlias,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: TcgColors.border),
+            border: Border.all(color: TcgColors.of(context).border),
           ),
           child: Stack(
             children: [
@@ -86,8 +86,8 @@ class _HomeScreenState extends State<HomeScreen> {
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
                       colors: [
-                        TcgColors.bg.withValues(alpha: .8),
-                        TcgColors.bg.withValues(alpha: .95),
+                        TcgColors.of(context).bg.withValues(alpha: .8),
+                        TcgColors.of(context).bg.withValues(alpha: .95),
                       ],
                     ),
                   ),
@@ -98,10 +98,10 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'THE COLLECTOR’S SHELF',
                       style: TextStyle(
-                        color: TcgColors.yellow,
+                        color: TcgColors.of(context).yellow,
                         letterSpacing: 2,
                         fontSize: 11,
                       ),
@@ -112,9 +112,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       style: Theme.of(context).textTheme.headlineLarge,
                     ),
                     const SizedBox(height: 12),
-                    const Text(
+                    Text(
                       'Find the missing piece of your collection.',
-                      style: TextStyle(color: TcgColors.muted),
+                      style: TextStyle(color: TcgColors.of(context).muted),
                     ),
                     const SizedBox(height: 24),
                     FilledButton.icon(
@@ -226,7 +226,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   Padding(
                     padding: const EdgeInsets.only(bottom: 10),
                     child: Material(
-                      color: TcgColors.surface,
+                      color: TcgColors.of(context).surface,
                       borderRadius: BorderRadius.circular(16),
                       child: InkWell(
                         borderRadius: BorderRadius.circular(16),
@@ -253,14 +253,14 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ),
                                     Text(
                                       product.gameName,
-                                      style: const TextStyle(
-                                        color: TcgColors.muted,
+                                      style: TextStyle(
+                                        color: TcgColors.of(context).muted,
                                       ),
                                     ),
                                     Text(
                                       money(product.price),
-                                      style: const TextStyle(
-                                        color: TcgColors.yellow,
+                                      style: TextStyle(
+                                        color: TcgColors.of(context).yellow,
                                       ),
                                     ),
                                   ],
@@ -282,11 +282,13 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(24),
-            border: Border.all(color: TcgColors.lavender.withValues(alpha: .4)),
+            border: Border.all(
+              color: TcgColors.of(context).lavender.withValues(alpha: .4),
+            ),
             gradient: LinearGradient(
               colors: [
-                TcgColors.lavender.withValues(alpha: .16),
-                TcgColors.surface.withValues(alpha: .7),
+                TcgColors.of(context).lavender.withValues(alpha: .16),
+                TcgColors.of(context).surface.withValues(alpha: .7),
               ],
             ),
           ),
@@ -298,9 +300,9 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: Theme.of(context).textTheme.headlineMedium,
               ),
               const SizedBox(height: 12),
-              const Text(
+              Text(
                 'Check the set, card number and condition. Make room for a card that means something to you.',
-                style: TextStyle(color: TcgColors.muted),
+                style: TextStyle(color: TcgColors.of(context).muted),
               ),
               const SizedBox(height: 16),
               TextButton.icon(

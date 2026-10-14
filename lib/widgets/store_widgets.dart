@@ -29,8 +29,8 @@ class StoreBackdrop extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                TcgColors.bg.withValues(alpha: .2),
-                TcgColors.bg.withValues(alpha: .94),
+                TcgColors.of(context).bg.withValues(alpha: .2),
+                TcgColors.of(context).bg.withValues(alpha: .94),
               ],
             ),
           ),
@@ -50,8 +50,12 @@ class CardArtwork extends StatelessWidget {
         Semantics(
           label: 'Artwork unavailable for ${product.name}',
           image: true,
-          child: const Center(
-            child: Icon(Icons.style_outlined, size: 48, color: TcgColors.muted),
+          child: Center(
+            child: Icon(
+              Icons.style_outlined,
+              size: 48,
+              color: TcgColors.of(context).muted,
+            ),
           ),
         );
     final path = product.imageUrl;
@@ -83,7 +87,7 @@ class ProductTile extends StatelessWidget {
   final VoidCallback onTap;
   @override
   Widget build(BuildContext context) => Material(
-    color: TcgColors.surface,
+    color: TcgColors.of(context).surface,
     borderRadius: BorderRadius.circular(20),
     clipBehavior: Clip.antiAlias,
     child: InkWell(
@@ -97,7 +101,7 @@ class ProductTile extends StatelessWidget {
               child: Container(
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: TcgColors.raised,
+                  color: TcgColors.of(context).raised,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Stack(
@@ -116,7 +120,10 @@ class ProductTile extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               product.gameName,
-              style: const TextStyle(color: TcgColors.lavender, fontSize: 12),
+              style: TextStyle(
+                color: TcgColors.of(context).lavender,
+                fontSize: 12,
+              ),
             ),
             const SizedBox(height: 4),
             Text(
@@ -130,26 +137,35 @@ class ProductTile extends StatelessWidget {
               product.setName,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: TcgColors.muted, fontSize: 12),
+              style: TextStyle(
+                color: TcgColors.of(context).muted,
+                fontSize: 12,
+              ),
             ),
             const SizedBox(height: 4),
             Text(
               '${product.rarity} · ${product.condition}',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: TcgColors.muted, fontSize: 12),
+              style: TextStyle(
+                color: TcgColors.of(context).muted,
+                fontSize: 12,
+              ),
             ),
             const SizedBox(height: 8),
             Text(
               money(product.price),
-              style: const TextStyle(
-                color: TcgColors.yellow,
+              style: TextStyle(
+                color: TcgColors.of(context).yellow,
                 fontWeight: FontWeight.w700,
               ),
             ),
             Text(
               product.stock > 0 ? '${product.stock} in stock' : 'Out of stock',
-              style: const TextStyle(color: TcgColors.muted, fontSize: 12),
+              style: TextStyle(
+                color: TcgColors.of(context).muted,
+                fontSize: 12,
+              ),
             ),
           ],
         ),
@@ -205,7 +221,7 @@ class StoreMessage extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 48, color: TcgColors.lavender),
+              Icon(icon, size: 48, color: TcgColors.of(context).lavender),
               const SizedBox(height: 16),
               Text(
                 title,
@@ -216,7 +232,7 @@ class StoreMessage extends StatelessWidget {
               Text(
                 message,
                 textAlign: TextAlign.center,
-                style: const TextStyle(color: TcgColors.muted),
+                style: TextStyle(color: TcgColors.of(context).muted),
               ),
               if (action != null)
                 Padding(

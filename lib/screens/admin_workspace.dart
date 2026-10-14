@@ -2,6 +2,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../services/commerce_api.dart';
 import '../state/auth_state.dart';
+import '../models/product.dart';
+import '../widgets/theme_mode_switch.dart';
 import '../theme/app_theme.dart';
 import '../widgets/store_widgets.dart';
 import 'admin_editors.dart';
@@ -68,6 +70,7 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
   ];
   int _section = 0, _page = 1, _analyticsTab = 0;
   String _search = '', _status = '', _stock = 'all';
+  final Set<String> _archiving = {};
   DateTime? _from, _to;
   late Future<Map<String, dynamic>> _response;
   Future<Map<String, dynamic>>? _forecast;
@@ -153,17 +156,24 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
     final accepted = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        icon: const Icon(Icons.logout, color: TcgColors.red),
-        title: const Text('Are you sure you want to logout?'),
+        icon: Icon(Icons.logout, color: TcgColors.of(context).red),
+        title: Text(
+          'Are you sure you want to logout?',
+          textAlign: TextAlign.center,
+        ),
+        actionsAlignment: MainAxisAlignment.center,
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text('Cancel'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: TcgColors.red),
+            style: FilledButton.styleFrom(
+              backgroundColor: TcgColors.of(context).red,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
             onPressed: () => Navigator.pop(context, true),
-            child: const Text('Logout'),
+            child: Text('Logout'),
           ),
         ],
       ),
@@ -210,9 +220,9 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
               padding: const EdgeInsets.all(20),
               child: Text(
                 'TCG404.',
-                style: Theme.of(
-                  context,
-                ).textTheme.headlineMedium?.copyWith(color: TcgColors.yellow),
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  color: TcgColors.of(context).yellow,
+                ),
               ),
             ),
             for (var i = 0; i < _sections.length; i++)
@@ -228,14 +238,21 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
           ],
         ),
       ),
+      const Padding(
+        padding: EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        child: ThemeModeSwitch(),
+      ),
       ListTile(
-        leading: const Icon(Icons.storefront_outlined),
-        title: const Text('Back to store'),
+        leading: Icon(Icons.storefront_outlined),
+        title: Text('Back to store'),
         onTap: widget.onStore,
       ),
       ListTile(
-        leading: const Icon(Icons.logout, color: TcgColors.red),
-        title: const Text('Logout', style: TextStyle(color: TcgColors.red)),
+        leading: Icon(Icons.logout, color: TcgColors.of(context).red),
+        title: Text(
+          'Logout',
+          style: TextStyle(color: TcgColors.of(context).red),
+        ),
         onTap: widget.auth.busy ? null : _logout,
       ),
       const SizedBox(height: 20),
@@ -260,7 +277,7 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
           _to = null;
           _reload();
         }),
-        child: const Text('Last 30 days'),
+        child: Text('Last 30 days'),
       ),
     ],
   );
@@ -283,7 +300,7 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
                 IconButton(
                   tooltip: 'Refresh',
                   onPressed: () => setState(_reload),
-                  icon: const Icon(Icons.refresh),
+                  icon: Icon(Icons.refresh),
                 ),
               ],
             ),
@@ -298,214 +315,262 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
                       SizedBox(
                         width: 235,
                         child: Material(
-                          color: TcgColors.surface,
+                          color: TcgColors.of(context).surface,
                           child: _navigation(wide: true),
                         ),
                       ),
                     Expanded(
-                      child: ListView(
-                        padding: EdgeInsets.all(wide ? 32 : 20),
+                      child: Column(
                         children: [
-                          Text(
-                            _sections[_section],
-                            style: Theme.of(context).textTheme.headlineLarge,
-                          ),
-                          const SizedBox(height: 24),
-                          if (_section == 0 ||
-                              _section == 2 ||
-                              _section == 3) ...[
-                            _datesToolbar(),
-                            const SizedBox(height: 24),
-                          ],
-                          if (_section == 1 ||
-                              _section == 2 ||
-                              _section == 4) ...[
-                            TextField(
-                              controller: _searchController,
-                              decoration: InputDecoration(
-                                labelText: _section == 2
-                                    ? 'Search orders or buyers'
-                                    : 'Search cards',
-                                suffixIcon: IconButton(
-                                  tooltip: 'Search',
-                                  icon: const Icon(Icons.search),
-                                  onPressed: () => setState(() {
-                                    _page = 1;
-                                    _search = _searchController.text.trim();
-                                    _reload();
-                                  }),
-                                ),
+                          if (_section == 1 || _section == 2 || _section == 4)
+                            Padding(
+                              padding: EdgeInsets.fromLTRB(
+                                wide ? 32 : 20,
+                                16,
+                                wide ? 32 : 20,
+                                0,
                               ),
-                              onSubmitted: (value) => setState(() {
-                                _page = 1;
-                                _search = value.trim();
-                                _reload();
-                              }),
-                            ),
-                            const SizedBox(height: 16),
-                          ],
-                          if (_section == 1)
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: FilledButton.icon(
-                                onPressed: () => _edit(null),
-                                icon: const Icon(Icons.add),
-                                label: const Text('Add product'),
-                              ),
-                            ),
-                          if (_section == 2)
-                            DropdownButtonFormField<String>(
-                              isExpanded: true,
-                              initialValue: _status,
-                              decoration: const InputDecoration(
-                                labelText: 'Status',
-                              ),
-                              items: [
-                                const DropdownMenuItem(
-                                  value: '',
-                                  child: Text('All statuses'),
-                                ),
-                                for (final status in [
-                                  'pending',
-                                  'processing',
-                                  'shipped',
-                                  'delayed',
-                                  'completed',
-                                  'cancelled',
-                                ])
-                                  DropdownMenuItem(
-                                    value: status,
-                                    child: Text(adminStatusLabel(status)),
-                                  ),
-                              ],
-                              onChanged: (value) => setState(() {
-                                _status = value!;
-                                _page = 1;
-                                _reload();
-                              }),
-                            ),
-                          if (_section == 4) ...[
-                            DropdownButtonFormField<String>(
-                              isExpanded: true,
-                              initialValue: _stock,
-                              decoration: const InputDecoration(
-                                labelText: 'Stock',
-                              ),
-                              items: [
-                                for (final status in ['all', 'low', 'out'])
-                                  DropdownMenuItem(
-                                    value: status,
-                                    child: Text(
-                                      {
-                                        'all': 'All stock',
-                                        'low': 'Low stock',
-                                        'out': 'Out of stock',
-                                      }[status]!,
-                                    ),
-                                  ),
-                              ],
-                              onChanged: (value) => setState(() {
-                                _stock = value!;
-                                _page = 1;
-                                _reload();
-                              }),
-                            ),
-                            Align(
-                              alignment: Alignment.centerRight,
-                              child: TextButton(
-                                onPressed: () => Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (_) => AdminMovementsScreen(
-                                      api: widget.api,
-                                      auth: widget.auth,
-                                    ),
+                              child: TextField(
+                                controller: _searchController,
+                                decoration: InputDecoration(
+                                  labelText: _section == 2
+                                      ? 'Search orders or buyers'
+                                      : 'Search cards',
+                                  suffixIcon: IconButton(
+                                    tooltip: 'Search',
+                                    icon: Icon(Icons.search),
+                                    onPressed: () => setState(() {
+                                      _page = 1;
+                                      _search = _searchController.text.trim();
+                                      _reload();
+                                    }),
                                   ),
                                 ),
-                                child: const Text('Stock history'),
+                                onSubmitted: (value) => setState(() {
+                                  _page = 1;
+                                  _search = value.trim();
+                                  _reload();
+                                }),
                               ),
                             ),
-                          ],
-                          const SizedBox(height: 20),
-                          FutureBuilder<Map<String, dynamic>>(
-                            future: _response,
-                            builder: (context, snapshot) {
-                              if (snapshot.hasError) {
-                                return StoreMessage(
-                                  title: 'Could not load workspace',
-                                  message: '${snapshot.error}',
-                                  action: 'Try again',
-                                  onAction: () => setState(_reload),
-                                );
-                              }
-                              if (snapshot.connectionState !=
-                                      ConnectionState.done ||
-                                  !snapshot.hasData) {
-                                return const Padding(
-                                  padding: EdgeInsets.all(48),
-                                  child: Center(
-                                    child: CircularProgressIndicator(),
+                          Expanded(
+                            child: ListView(
+                              padding: EdgeInsets.all(wide ? 32 : 20),
+                              children: [
+                                Text(
+                                  _sections[_section],
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.headlineLarge,
+                                ),
+                                const SizedBox(height: 24),
+                                if (_section == 0 ||
+                                    _section == 2 ||
+                                    _section == 3) ...[
+                                  _datesToolbar(),
+                                  const SizedBox(height: 24),
+                                ],
+                                if (_section == 1)
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: FilledButton.icon(
+                                      onPressed: () => _edit(null),
+                                      icon: Icon(Icons.add),
+                                      label: Text('Add product'),
+                                    ),
                                   ),
-                                );
-                              }
-                              final response = snapshot.data!,
-                                  data = response['data'];
-                              if (_section == 0 || _section == 3) {
-                                return _analytics(
-                                  Map<String, dynamic>.from(data),
-                                );
-                              }
-                              final rows = (data as List)
-                                  .cast<Map<String, dynamic>>();
-                              final meta = response['meta'] as Map;
-                              return Column(
-                                crossAxisAlignment: CrossAxisAlignment.stretch,
-                                children: [
-                                  if (rows.isEmpty)
-                                    const Padding(
-                                      padding: EdgeInsets.all(32),
-                                      child: Text('No matching records.'),
+                                if (_section == 2)
+                                  DropdownButtonFormField<String>(
+                                    isExpanded: true,
+                                    initialValue: _status,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Status',
                                     ),
-                                  for (final row in rows)
-                                    Padding(
-                                      padding: const EdgeInsets.only(
-                                        bottom: 16,
+                                    items: [
+                                      const DropdownMenuItem(
+                                        value: '',
+                                        child: Text('All statuses'),
                                       ),
-                                      child: _record(row),
-                                    ),
-                                  Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      IconButton(
-                                        tooltip: 'Previous page',
-                                        onPressed: _page > 1
-                                            ? () => setState(() {
-                                                _page--;
-                                                _reload();
-                                              })
-                                            : null,
-                                        icon: const Icon(Icons.chevron_left),
-                                      ),
-                                      Text(
-                                        'Page ${meta['page']} of ${meta['totalPages']}',
-                                      ),
-                                      IconButton(
-                                        tooltip: 'Next page',
-                                        onPressed:
-                                            _page < (meta['totalPages'] as num)
-                                            ? () => setState(() {
-                                                _page++;
-                                                _reload();
-                                              })
-                                            : null,
-                                        icon: const Icon(Icons.chevron_right),
-                                      ),
+                                      for (final status in [
+                                        'pending',
+                                        'processing',
+                                        'shipped',
+                                        'delayed',
+                                        'completed',
+                                        'cancelled',
+                                      ])
+                                        DropdownMenuItem(
+                                          value: status,
+                                          child: Text(adminStatusLabel(status)),
+                                        ),
                                     ],
+                                    onChanged: (value) => setState(() {
+                                      _status = value!;
+                                      _page = 1;
+                                      _reload();
+                                    }),
+                                  ),
+                                if (_section == 4) ...[
+                                  DropdownButtonFormField<String>(
+                                    isExpanded: true,
+                                    initialValue: _stock,
+                                    decoration: const InputDecoration(
+                                      labelText: 'Stock',
+                                    ),
+                                    items: [
+                                      for (final status in [
+                                        'all',
+                                        'low',
+                                        'out',
+                                      ])
+                                        DropdownMenuItem(
+                                          value: status,
+                                          child: Text(
+                                            {
+                                              'all': 'All stock',
+                                              'low': 'Low stock',
+                                              'out': 'Out of stock',
+                                            }[status]!,
+                                          ),
+                                        ),
+                                    ],
+                                    onChanged: (value) => setState(() {
+                                      _stock = value!;
+                                      _page = 1;
+                                      _reload();
+                                    }),
+                                  ),
+                                  Align(
+                                    alignment: Alignment.centerRight,
+                                    child: TextButton(
+                                      onPressed: () => Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => AdminMovementsScreen(
+                                            api: widget.api,
+                                            auth: widget.auth,
+                                          ),
+                                        ),
+                                      ),
+                                      child: Text('Stock history'),
+                                    ),
                                   ),
                                 ],
-                              );
-                            },
+                                const SizedBox(height: 20),
+                                FutureBuilder<Map<String, dynamic>>(
+                                  future: _response,
+                                  builder: (context, snapshot) {
+                                    if (snapshot.hasError) {
+                                      return StoreMessage(
+                                        title: 'Could not load workspace',
+                                        message: '${snapshot.error}',
+                                        action: 'Try again',
+                                        onAction: () => setState(_reload),
+                                      );
+                                    }
+                                    if (snapshot.connectionState !=
+                                            ConnectionState.done ||
+                                        !snapshot.hasData) {
+                                      return const Padding(
+                                        padding: EdgeInsets.all(48),
+                                        child: Center(
+                                          child: CircularProgressIndicator(),
+                                        ),
+                                      );
+                                    }
+                                    final response = snapshot.data!,
+                                        data = response['data'];
+                                    if (_section == 0 || _section == 3) {
+                                      return _analytics(
+                                        Map<String, dynamic>.from(data),
+                                      );
+                                    }
+                                    final rows = (data as List)
+                                        .cast<Map<String, dynamic>>();
+                                    final meta = response['meta'] as Map;
+                                    return Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: [
+                                        if (rows.isEmpty)
+                                          const Padding(
+                                            padding: EdgeInsets.all(32),
+                                            child: Text('No matching records.'),
+                                          ),
+                                        if (_section == 1)
+                                          LayoutBuilder(
+                                            builder: (context, constraints) {
+                                              final columns =
+                                                  constraints.maxWidth >= 1000
+                                                  ? 4
+                                                  : constraints.maxWidth >= 700
+                                                  ? 3
+                                                  : constraints.maxWidth >= 480
+                                                  ? 2
+                                                  : 1;
+                                              final width =
+                                                  (constraints.maxWidth -
+                                                      16 * (columns - 1)) /
+                                                  columns;
+                                              return Wrap(
+                                                spacing: 16,
+                                                runSpacing: 16,
+                                                children: [
+                                                  for (final row in rows)
+                                                    SizedBox(
+                                                      width: width,
+                                                      child: _record(row),
+                                                    ),
+                                                ],
+                                              );
+                                            },
+                                          )
+                                        else
+                                          for (final row in rows)
+                                            Padding(
+                                              padding: const EdgeInsets.only(
+                                                bottom: 16,
+                                              ),
+                                              child: _record(row),
+                                            ),
+                                        Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            IconButton(
+                                              tooltip: 'Previous page',
+                                              onPressed: _page > 1
+                                                  ? () => setState(() {
+                                                      _page--;
+                                                      _reload();
+                                                    })
+                                                  : null,
+                                              icon: Icon(Icons.chevron_left),
+                                            ),
+                                            Text(
+                                              'Page ${meta['page']} of ${meta['totalPages']}',
+                                            ),
+                                            IconButton(
+                                              tooltip: 'Next page',
+                                              onPressed:
+                                                  _page <
+                                                      (meta['totalPages']
+                                                          as num)
+                                                  ? () => setState(() {
+                                                      _page++;
+                                                      _reload();
+                                                    })
+                                                  : null,
+                                              icon: Icon(Icons.chevron_right),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
                           ),
                         ],
                       ),
@@ -519,52 +584,136 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
       );
     },
   );
-  Widget _record(Map<String, dynamic> row) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '${row[_section == 2 ? 'orderNumber' : 'name']}',
-            style: Theme.of(context).textTheme.titleLarge,
+  Future<void> _archive(Map<String, dynamic> row) async {
+    if (_archiving.contains(row['id'])) return;
+    final active = row['isActive'] == false;
+    final accepted = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(
+          '${active ? 'Restore' : 'Archive'} product?',
+          textAlign: TextAlign.center,
+        ),
+        content: Text(
+          active
+              ? 'Show this product in the store again?'
+              : 'Hide this product from the store? Its order history will remain.',
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('Cancel'),
           ),
-          const SizedBox(height: 8),
-          if (_section == 2) ...[
-            Text('${row['buyer']?['name'] ?? row['shipping']?['name'] ?? ''}'),
-            Text(
-              '${row['buyer']?['email'] ?? row['shipping']?['email'] ?? ''}',
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '${adminStatusLabel(row['status'])} · ${money((row['total'] as num).toDouble())}',
-            ),
-            const SizedBox(height: 16),
-            Align(
-              alignment: Alignment.centerRight,
-              child: OutlinedButton(
-                onPressed: () => _order(row),
-                child: const Text('View order'),
-              ),
-            ),
-          ] else ...[
-            Text('${row['setName']}'),
-            const SizedBox(height: 8),
-            Text(
-              '${row['stock']} in stock · ${money((row['price'] as num).toDouble())}',
-            ),
-            if (row['isActive'] == false)
-              const Text('Archived', style: TextStyle(color: TcgColors.red)),
-            const SizedBox(height: 16),
-            Align(
-              alignment: Alignment.centerRight,
-              child: OutlinedButton(
-                onPressed: () => _edit(row, inventory: _section == 4),
-                child: Text(_section == 4 ? 'Adjust stock' : 'Edit product'),
-              ),
-            ),
-          ],
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text(active ? 'Restore' : 'Archive'),
+          ),
         ],
+      ),
+    );
+    if (accepted != true || !mounted || widget.auth.user?.role != 'admin') {
+      return;
+    }
+    final revision = widget.auth.revision;
+    setState(() => _archiving.add(row['id']));
+    try {
+      await widget.api.request(
+        'PATCH',
+        'admin/products/${row['id']}/status',
+        body: {'isActive': active},
+      );
+      if (mounted && revision == widget.auth.revision) setState(_reload);
+    } catch (error) {
+      if (mounted && revision == widget.auth.revision) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('$error')));
+      }
+    } finally {
+      if (mounted) setState(() => _archiving.remove(row['id']));
+    }
+  }
+
+  Widget _record(Map<String, dynamic> row) => Card(
+    clipBehavior: Clip.antiAlias,
+    child: InkWell(
+      onTap: _section == 2 ? () => _order(row) : null,
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (_section == 1) ...[
+              SizedBox(
+                height: 220,
+                width: double.infinity,
+                child: CardArtwork(product: Product.fromJson(row)),
+              ),
+              const SizedBox(height: 16),
+            ],
+            Text(
+              '${row[_section == 2 ? 'orderNumber' : 'name']}',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            if (_section == 2) ...[
+              Text(
+                '${row['buyer']?['name'] ?? row['shipping']?['name'] ?? ''}',
+              ),
+              Text(
+                '${row['buyer']?['email'] ?? row['shipping']?['email'] ?? ''}',
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '${adminStatusLabel(row['status'])} · ${money((row['total'] as num).toDouble())}',
+              ),
+              const SizedBox(height: 16),
+              Align(
+                alignment: Alignment.centerRight,
+                child: OutlinedButton(
+                  onPressed: () => _order(row),
+                  child: Text('View order'),
+                ),
+              ),
+            ] else ...[
+              Text('${row['setName']}'),
+              const SizedBox(height: 8),
+              Text(
+                '${row['stock']} in stock · ${money((row['price'] as num).toDouble())}',
+              ),
+              if (row['isActive'] == false)
+                Text(
+                  'Archived',
+                  style: TextStyle(color: TcgColors.of(context).red),
+                ),
+              const SizedBox(height: 16),
+              Align(
+                alignment: Alignment.centerRight,
+                child: OutlinedButton(
+                  onPressed: () => _edit(row, inventory: _section == 4),
+                  child: Text(_section == 4 ? 'Adjust stock' : 'Edit product'),
+                ),
+              ),
+              if (_section == 1)
+                Center(
+                  child: TextButton.icon(
+                    onPressed: _archiving.contains(row['id'])
+                        ? null
+                        : () => _archive(row),
+                    icon: Icon(
+                      row['isActive'] == false
+                          ? Icons.unarchive_outlined
+                          : Icons.archive_outlined,
+                    ),
+                    label: Text(
+                      row['isActive'] == false ? 'Restore' : 'Archive',
+                    ),
+                  ),
+                ),
+            ],
+          ],
+        ),
       ),
     ),
   );
@@ -598,24 +747,30 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
           _metric(
             'Paid revenue',
             money((data['revenue'] as num).toDouble()),
-            TcgColors.yellow,
+            TcgColors.of(context).yellow,
           ),
           _metric(
             'Net order value',
             money((data['orderValue'] as num).toDouble()),
-            const Color(0xff8ed8c2),
+            Theme.of(context).brightness == Brightness.dark
+                ? const Color(0xff8ed8c2)
+                : const Color(0xff216653),
           ),
-          _metric('Orders created', '${data['orders']}', TcgColors.lavender),
+          _metric(
+            'Orders created',
+            '${data['orders']}',
+            TcgColors.of(context).lavender,
+          ),
           if (_section == 0) ...[
             _metric(
               'Net units sold',
               '${data['netUnitsSold'] ?? data['unitsSold']}',
-              TcgColors.yellow,
+              TcgColors.of(context).yellow,
             ),
             _metric(
               'Low / out of stock',
               '${data['inventory']['lowStock']} / ${data['inventory']['outOfStock']}',
-              TcgColors.red,
+              TcgColors.of(context).red,
             ),
           ],
         ],
@@ -705,7 +860,7 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
       children: [
         Text('Demand by game', style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 20),
-        if (rows.isEmpty) const Text('No completed sales in this period.'),
+        if (rows.isEmpty) Text('No completed sales in this period.'),
         for (final row in rows)
           Padding(
             padding: const EdgeInsets.only(bottom: 20),
@@ -800,13 +955,11 @@ class _AdminWorkspaceState extends State<AdminWorkspace> {
         ['Low stock', '${data['inventory']['lowStock']}'],
         ['Out of stock', '${data['inventory']['outOfStock']}'],
       ]) ...[
-        Text(row[0], style: const TextStyle(color: TcgColors.muted)),
-        Text(row[1], style: const TextStyle(fontWeight: FontWeight.bold)),
+        Text(row[0], style: TextStyle(color: TcgColors.of(context).muted)),
+        Text(row[1], style: TextStyle(fontWeight: FontWeight.bold)),
         const Divider(height: 24),
       ],
-      const Text(
-        'Refunds use refund dates. Order values use original order dates.',
-      ),
+      Text('Refunds use refund dates. Order values use original order dates.'),
     ],
   );
 
@@ -925,8 +1078,7 @@ class _AdminBestSellersState extends State<AdminBestSellers> {
       children: [
         Text('Most collected', style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 12),
-        if (widget.rows.isEmpty)
-          const Text('No completed sales in this period.'),
+        if (widget.rows.isEmpty) Text('No completed sales in this period.'),
         for (
           var index = page * 4;
           index < math.min(page * 4 + 4, widget.rows.length);
@@ -934,7 +1086,7 @@ class _AdminBestSellersState extends State<AdminBestSellers> {
         ) ...[
           Text(
             '${index + 1}. ${widget.rows[index]['name']}',
-            style: const TextStyle(fontWeight: FontWeight.bold),
+            style: TextStyle(fontWeight: FontWeight.bold),
           ),
           Text(
             '${widget.rows[index]['unitsSold']} units · ${money((widget.rows[index]['revenue'] as num? ?? 0).toDouble())} paid revenue',
@@ -951,7 +1103,7 @@ class _AdminBestSellersState extends State<AdminBestSellers> {
                 onPressed: page > 0
                     ? () => setState(() => _page = page - 1)
                     : null,
-                icon: const Icon(Icons.chevron_left),
+                icon: Icon(Icons.chevron_left),
               ),
               Text('Page ${page + 1} of $pages'),
               IconButton(
@@ -959,7 +1111,7 @@ class _AdminBestSellersState extends State<AdminBestSellers> {
                 onPressed: page < pages - 1
                     ? () => setState(() => _page = page + 1)
                     : null,
-                icon: const Icon(Icons.chevron_right),
+                icon: Icon(Icons.chevron_right),
               ),
             ],
           ),
@@ -994,7 +1146,7 @@ class AdminSalesChart extends StatelessWidget {
         Text(title, style: Theme.of(context).textTheme.titleLarge),
         const SizedBox(height: 24),
         if (rows.isEmpty)
-          const Text('No values in this period.')
+          Text('No values in this period.')
         else
           Semantics(
             label:
@@ -1008,6 +1160,12 @@ class AdminSalesChart extends StatelessWidget {
                   rows,
                   maximum,
                   MediaQuery.textScalerOf(context).scale(11),
+                  TcgColors.of(context).muted,
+                  TcgColors.of(context).border,
+                  TcgColors.of(context).yellow,
+                  Theme.of(context).brightness == Brightness.dark
+                      ? const Color(0xff8ed8c2)
+                      : const Color(0xff216653),
                 ),
               ),
             ),
@@ -1015,19 +1173,23 @@ class AdminSalesChart extends StatelessWidget {
         const SizedBox(height: 20),
         Text(
           'Net delivered order value · PHP',
-          style: const TextStyle(color: TcgColors.muted),
+          style: TextStyle(color: TcgColors.of(context).muted),
         ),
         if (rows.any((row) => row.containsKey('revenue')))
-          const Text(
+          Text(
             'Mint line: actual paid revenue',
-            style: TextStyle(color: Color(0xff8ed8c2)),
+            style: TextStyle(
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? const Color(0xff8ed8c2)
+                  : const Color(0xff216653),
+            ),
           ),
         TextButton(
-          child: const Text('Exact daily values'),
+          child: Text('Exact daily values'),
           onPressed: () => showDialog<void>(
             context: context,
             builder: (context) => AlertDialog(
-              title: const Text('Exact daily values'),
+              title: Text('Exact daily values'),
               scrollable: true,
               content: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1047,7 +1209,7 @@ class AdminSalesChart extends StatelessWidget {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Close'),
+                  child: Text('Close'),
                 ),
               ],
             ),
@@ -1059,7 +1221,16 @@ class AdminSalesChart extends StatelessWidget {
 }
 
 class _OrderValuePainter extends CustomPainter {
-  _OrderValuePainter(this.rows, this.maximum, this.fontSize);
+  _OrderValuePainter(
+    this.rows,
+    this.maximum,
+    this.fontSize,
+    this.muted,
+    this.border,
+    this.accent,
+    this.mint,
+  );
+  final Color muted, border, accent, mint;
   final List<Map<String, dynamic>> rows;
   final double maximum, fontSize;
   @override
@@ -1070,7 +1241,7 @@ class _OrderValuePainter extends CustomPainter {
       final painter = TextPainter(
         text: TextSpan(
           text: text,
-          style: TextStyle(color: TcgColors.muted, fontSize: fontSize),
+          style: TextStyle(color: muted, fontSize: fontSize),
         ),
         textDirection: TextDirection.ltr,
         maxLines: 1,
@@ -1084,7 +1255,7 @@ class _OrderValuePainter extends CustomPainter {
       canvas.drawLine(
         Offset(left, y),
         Offset(size.width, y),
-        Paint()..color = TcgColors.border.withValues(alpha: .3),
+        Paint()..color = border.withValues(alpha: .3),
       );
       final value = maximum * tick / 4;
       label(
@@ -1108,7 +1279,7 @@ class _OrderValuePainter extends CustomPainter {
           step * .7,
           height,
         ),
-        Paint()..color = TcgColors.yellow,
+        Paint()..color = accent,
       );
     }
     if (rows.any((row) => row.containsKey('revenue'))) {
@@ -1123,16 +1294,12 @@ class _OrderValuePainter extends CustomPainter {
         } else {
           path.lineTo(x, y);
         }
-        canvas.drawCircle(
-          Offset(x, y),
-          2,
-          Paint()..color = const Color(0xff8ed8c2),
-        );
+        canvas.drawCircle(Offset(x, y), 2, Paint()..color = mint);
       }
       canvas.drawPath(
         path,
         Paint()
-          ..color = const Color(0xff8ed8c2)
+          ..color = mint
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2,
       );
@@ -1155,5 +1322,9 @@ class _OrderValuePainter extends CustomPainter {
   bool shouldRepaint(covariant _OrderValuePainter oldDelegate) =>
       rows != oldDelegate.rows ||
       maximum != oldDelegate.maximum ||
-      fontSize != oldDelegate.fontSize;
+      fontSize != oldDelegate.fontSize ||
+      muted != oldDelegate.muted ||
+      border != oldDelegate.border ||
+      accent != oldDelegate.accent ||
+      mint != oldDelegate.mint;
 }

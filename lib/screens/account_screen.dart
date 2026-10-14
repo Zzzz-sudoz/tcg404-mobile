@@ -55,15 +55,22 @@ class _AccountScreenState extends State<AccountScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        icon: const Icon(Icons.logout, color: TcgColors.red),
-        title: const Text('Are you sure you want to logout?'),
+        icon: Icon(Icons.logout, color: TcgColors.of(context).red),
+        title: const Text(
+          'Are you sure you want to logout?',
+          textAlign: TextAlign.center,
+        ),
+        actionsAlignment: MainAxisAlignment.center,
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: const Text('Cancel'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: TcgColors.red),
+            style: FilledButton.styleFrom(
+              backgroundColor: TcgColors.of(context).red,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
             onPressed: () => Navigator.pop(context, true),
             child: const Text('Logout'),
           ),
@@ -112,9 +119,9 @@ class _AccountScreenState extends State<AccountScreen> {
                       : null,
                 ),
                 const SizedBox(height: 16),
-                const Text(
+                Text(
                   'Email address',
-                  style: TextStyle(color: TcgColors.muted),
+                  style: TextStyle(color: TcgColors.of(context).muted),
                 ),
                 const SizedBox(height: 8),
                 SelectableText(widget.auth.user!.email),
@@ -145,9 +152,9 @@ class _AccountScreenState extends State<AccountScreen> {
           style: Theme.of(context).textTheme.headlineMedium,
         ),
         const SizedBox(height: 16),
-        const Text(
+        Text(
           'Your profile, orders and saved checkout details in one place.',
-          style: TextStyle(color: TcgColors.muted),
+          style: TextStyle(color: TcgColors.of(context).muted),
         ),
         const SizedBox(height: 24),
         OutlinedButton(
@@ -181,149 +188,159 @@ class _AccountScreenState extends State<AccountScreen> {
         _name.text = user?.name ?? '';
         _section = widget.api == null ? 'Profile' : 'Overview';
       }
-      return SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1100),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'YOUR COLLECTOR SPACE.',
-                  style: Theme.of(context).textTheme.headlineLarge,
-                ),
-                const SizedBox(height: 16),
-                if (auth.error != null) ...[
-                  Semantics(
-                    liveRegion: true,
-                    child: Text(
-                      auth.error!,
-                      style: const TextStyle(color: TcgColors.red),
-                    ),
+      return LayoutBuilder(
+        builder: (context, viewport) => SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxWidth: 1100,
+                minHeight: user == null
+                    ? (viewport.maxHeight - 48).clamp(0, double.infinity)
+                    : 0,
+              ),
+              child: Column(
+                mainAxisAlignment: user == null
+                    ? MainAxisAlignment.center
+                    : MainAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    'YOUR COLLECTOR SPACE.',
+                    style: Theme.of(context).textTheme.headlineLarge,
                   ),
-                  if (auth.restoreFailed)
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: TextButton(
-                        onPressed: auth.busy ? null : auth.restore,
-                        child: const Text('Retry account connection'),
+                  const SizedBox(height: 16),
+                  if (auth.error != null) ...[
+                    Semantics(
+                      liveRegion: true,
+                      child: Text(
+                        auth.error!,
+                        style: TextStyle(color: TcgColors.of(context).red),
                       ),
                     ),
-                  const SizedBox(height: 16),
-                ],
-                if (user == null) ...[
-                  const Text(
-                    'Sign in to manage your profile and follow your orders.',
-                    style: TextStyle(color: TcgColors.muted),
-                  ),
-                  const SizedBox(height: 32),
-                  FilledButton(
-                    onPressed: auth.busy ? null : widget.onSignIn,
-                    child: const Text('Sign in'),
-                  ),
-                  const SizedBox(height: 8),
-                  OutlinedButton(
-                    onPressed: auth.busy ? null : widget.onRegister,
-                    child: const Text('Create account'),
-                  ),
-                ] else ...[
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final navigation = [
-                        for (final section in [
-                          'Overview',
-                          'Profile',
-                          'Orders',
-                          if (widget.onFavorites != null) 'Favorites',
-                          if (widget.onCart != null) 'Cart',
-                          if (widget.api != null) ...[
-                            'Addresses',
-                            'Payment methods',
-                            'Logout',
-                          ],
-                        ])
-                          TextButton(
-                            onPressed: () {
-                              if (section == 'Logout') {
-                                _logout();
-                                return;
-                              }
-                              if (section == 'Orders') {
-                                widget.onOrders();
-                                return;
-                              }
-                              if (section == 'Favorites') {
-                                widget.onFavorites?.call();
-                                return;
-                              }
-                              if (section == 'Cart') {
-                                widget.onCart?.call();
-                                return;
-                              }
-                              setState(() => _section = section);
-                            },
-                            style: TextButton.styleFrom(
-                              foregroundColor: section == 'Logout'
-                                  ? TcgColors.red
-                                  : _section == section
-                                  ? TcgColors.yellow
-                                  : TcgColors.ink,
+                    if (auth.restoreFailed)
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton(
+                          onPressed: auth.busy ? null : auth.restore,
+                          child: const Text('Retry account connection'),
+                        ),
+                      ),
+                    const SizedBox(height: 16),
+                  ],
+                  if (user == null) ...[
+                    Text(
+                      'Sign in to manage your profile and follow your orders.',
+                      style: TextStyle(color: TcgColors.of(context).muted),
+                    ),
+                    const SizedBox(height: 32),
+                    FilledButton(
+                      onPressed: auth.busy ? null : widget.onSignIn,
+                      child: const Text('Sign in'),
+                    ),
+                    const SizedBox(height: 8),
+                    OutlinedButton(
+                      onPressed: auth.busy ? null : widget.onRegister,
+                      child: const Text('Create account'),
+                    ),
+                  ] else ...[
+                    LayoutBuilder(
+                      builder: (context, constraints) {
+                        final navigation = [
+                          for (final section in [
+                            'Overview',
+                            'Profile',
+                            'Orders',
+                            if (widget.onFavorites != null) 'Favorites',
+                            if (widget.onCart != null) 'Cart',
+                            if (widget.api != null) ...[
+                              'Addresses',
+                              'Payment methods',
+                              'Logout',
+                            ],
+                          ])
+                            TextButton(
+                              onPressed: () {
+                                if (section == 'Logout') {
+                                  _logout();
+                                  return;
+                                }
+                                if (section == 'Orders') {
+                                  widget.onOrders();
+                                  return;
+                                }
+                                if (section == 'Favorites') {
+                                  widget.onFavorites?.call();
+                                  return;
+                                }
+                                if (section == 'Cart') {
+                                  widget.onCart?.call();
+                                  return;
+                                }
+                                setState(() => _section = section);
+                              },
+                              style: TextButton.styleFrom(
+                                foregroundColor: section == 'Logout'
+                                    ? TcgColors.of(context).red
+                                    : _section == section
+                                    ? TcgColors.of(context).yellow
+                                    : TcgColors.of(context).ink,
+                              ),
+                              child: Text(section),
                             ),
-                            child: Text(section),
-                          ),
-                      ];
-                      return constraints.maxWidth >= 760
-                          ? Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                SizedBox(
-                                  width: 180,
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
+                        ];
+                        return constraints.maxWidth >= 760
+                            ? Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  SizedBox(
+                                    width: 180,
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
+                                      children: navigation,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 24),
+                                  Expanded(child: _dashboardContent()),
+                                ],
+                              )
+                            : Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Wrap(
+                                    spacing: 8,
+                                    runSpacing: 8,
                                     children: navigation,
                                   ),
-                                ),
-                                const SizedBox(width: 24),
-                                Expanded(child: _dashboardContent()),
-                              ],
-                            )
-                          : Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                Wrap(
-                                  spacing: 8,
-                                  runSpacing: 8,
-                                  children: navigation,
-                                ),
-                                const SizedBox(height: 24),
-                                _dashboardContent(),
-                              ],
-                            );
-                    },
-                  ),
-                  const SizedBox(height: 32),
-                  const Divider(),
-                  const SizedBox(height: 16),
-                  OutlinedButton.icon(
-                    onPressed: auth.busy ? null : widget.onOrders,
-                    icon: const Icon(Icons.receipt_long_outlined),
-                    label: const Text('Orders & tracking'),
-                  ),
-                  const SizedBox(height: 8),
-                  if (widget.api == null)
-                    OutlinedButton.icon(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: TcgColors.red,
-                        side: const BorderSide(color: TcgColors.red),
-                      ),
-                      onPressed: auth.busy ? null : _logout,
-                      icon: const Icon(Icons.logout),
-                      label: const Text('Logout'),
+                                  const SizedBox(height: 24),
+                                  _dashboardContent(),
+                                ],
+                              );
+                      },
                     ),
+                    const SizedBox(height: 32),
+                    const Divider(),
+                    const SizedBox(height: 16),
+                    OutlinedButton.icon(
+                      onPressed: auth.busy ? null : widget.onOrders,
+                      icon: const Icon(Icons.receipt_long_outlined),
+                      label: const Text('Orders & tracking'),
+                    ),
+                    const SizedBox(height: 8),
+                    if (widget.api == null)
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: TcgColors.of(context).red,
+                          side: BorderSide(color: TcgColors.of(context).red),
+                        ),
+                        onPressed: auth.busy ? null : _logout,
+                        icon: const Icon(Icons.logout),
+                        label: const Text('Logout'),
+                      ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),

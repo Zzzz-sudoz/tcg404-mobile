@@ -62,7 +62,7 @@ class FavoriteButton extends StatelessWidget {
           tooltip:
               '${saved ? 'Remove' : 'Save'} ${product.name} ${saved ? 'from' : 'to'} favorites',
           isSelected: saved,
-          color: TcgColors.yellow,
+          color: TcgColors.of(context).yellow,
           icon: const Icon(Icons.favorite_border),
           selectedIcon: const Icon(Icons.favorite),
           onPressed: state.loading || state.pending.contains(product.id)

@@ -208,9 +208,9 @@ class _OrdersScreenState extends State<OrdersScreen>
                           style: Theme.of(context).textTheme.headlineMedium,
                         ),
                         const SizedBox(height: 8),
-                        const Text(
+                        Text(
                           'Saved receipts and delivery updates.',
-                          style: TextStyle(color: TcgColors.muted),
+                          style: TextStyle(color: TcgColors.of(context).muted),
                         ),
                         const SizedBox(height: 24),
                         Wrap(
@@ -266,7 +266,9 @@ class _OrdersScreenState extends State<OrdersScreen>
                           Padding(
                             padding: const EdgeInsets.only(bottom: 12),
                             child: Material(
-                              color: TcgColors.surface.withValues(alpha: .94),
+                              color: TcgColors.of(
+                                context,
+                              ).surface.withValues(alpha: .94),
                               borderRadius: BorderRadius.circular(16),
                               clipBehavior: Clip.antiAlias,
                               child: InkWell(
@@ -321,22 +323,27 @@ class _OrdersScreenState extends State<OrdersScreen>
                                                 .toIso8601String()
                                                 .split('T')
                                                 .first,
-                                            style: const TextStyle(
-                                              color: TcgColors.muted,
+                                            style: TextStyle(
+                                              color: TcgColors.of(
+                                                context,
+                                              ).muted,
                                             ),
                                           ),
                                           Text(
                                             order.statusLabel,
                                             style: TextStyle(
                                               color: orderStatusColor(
+                                                context: context,
                                                 order.status,
                                               ),
                                             ),
                                           ),
                                           Text(
                                             money(order.total),
-                                            style: const TextStyle(
-                                              color: TcgColors.yellow,
+                                            style: TextStyle(
+                                              color: TcgColors.of(
+                                                context,
+                                              ).yellow,
                                               fontWeight: FontWeight.w700,
                                             ),
                                           ),
@@ -351,7 +358,7 @@ class _OrdersScreenState extends State<OrdersScreen>
                         if (_error != null) ...[
                           Text(
                             _error!,
-                            style: const TextStyle(color: TcgColors.red),
+                            style: TextStyle(color: TcgColors.of(context).red),
                           ),
                           const SizedBox(height: 8),
                           OutlinedButton(
